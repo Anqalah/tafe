@@ -31,6 +31,19 @@ const DashboardAdmin = () => {
   };
 
   useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const response = await axiosInstance.get("/teachers");
+        console.log("Response:", response); // Debugging
+      } catch (error) {
+        console.error("Error fetching teachers:", error);
+      }
+    };
+
+    fetchTeachers();
+  }, []);
+
+  useEffect(() => {
     getTeachers();
     getStudents();
   }, []);

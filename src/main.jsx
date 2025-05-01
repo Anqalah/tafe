@@ -47,7 +47,7 @@ const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
-    path: "/register/face",
+    path: "/register/complete",
     element: <FaceVerificationRegister />,
   },
   {

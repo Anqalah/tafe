@@ -22,6 +22,7 @@ export const login = createAsyncThunk("user/Login", async (user, thunkAPI) => {
 export const getMe = createAsyncThunk("user/getMe", async (_, thunkAPI) => {
   try {
     const response = await axiosInstance.get("/me");
+    console.log(response);
     return response.data;
   } catch (error) {
     if (error.response) {
@@ -32,7 +33,7 @@ export const getMe = createAsyncThunk("user/getMe", async (_, thunkAPI) => {
 });
 
 export const logout = createAsyncThunk("user/logout", async () => {
-  await axiosInstance.delete("logout");
+  localStorage.removeItem("token");
 });
 
 export const authSlice = createSlice({
@@ -49,7 +50,8 @@ export const authSlice = createSlice({
     builder.addCase(login.fulfilled, (state, action) => {
       state.isLoading = false;
       state.isSuccess = true;
-      state.user = action.payload;
+      state.user = action.payload.user;
+      localStorage.setItem("token", action.payload.token);
     });
     builder.addCase(login.rejected, (state, action) => {
       state.isLoading = false;
