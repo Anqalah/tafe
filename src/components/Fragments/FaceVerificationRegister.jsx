@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
-import Button from "../Elements/Button";
+import Button from "../Elements/Button/index";
 import AuthLayout from "../Layouts/AuthLayouts";
 import axiosInstance from "../../config/axios";
 import { Modal } from "../Elements/Modals/Modal";

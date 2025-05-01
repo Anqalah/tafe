@@ -133,12 +133,6 @@ const UserProfile = ({ user, isOpen, toggle, onLogout }) => {
       {/* Profile Dropdown */}
       {isOpen && (
         <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl overflow-hidden z-10 border border-gray-100">
-          <div className="p-4 border-b border-gray-100">
-            <p className="font-medium text-gray-800">{user?.name || "Admin"}</p>
-            <p className="text-sm text-gray-500 truncate">
-              {user?.email || "admin@gmail.com"}
-            </p>
-          </div>{" "}
           <button
             className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-neutral_bg transition-colors"
             onClick={() => navigate(`/admin/edit/${user?.uuid}`)}
