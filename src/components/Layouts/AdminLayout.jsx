@@ -2,7 +2,16 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout, reset } from "../../Features/authSlice";
-import Button from "../Elements/Button";
+import {
+  ChartBarIcon,
+  UserGroupIcon,
+  AcademicCapIcon,
+  ClipboardDocumentListIcon,
+  PencilSquareIcon,
+  ArrowLeftOnRectangleIcon,
+  BellIcon,
+  ChevronDownIcon,
+} from "@heroicons/react/24/outline";
 
 const AdminLayout = ({ children }) => {
   const dispatch = useDispatch();
@@ -17,75 +26,137 @@ const AdminLayout = ({ children }) => {
   };
 
   return (
-    <>
-      <aside className="fixed top-0 left-0 w-64 h-screen bg-white border-r dark:bg-gray-800 dark:border-gray-700">
-        <div className="p-5 flex justify-between items-center border-b dark:border-gray-700">
-          <span className="text-lg font-semibold">SKRIPSI ABSEN</span>
+    <div className="flex h-screen bg-neutral_bg font-sans">
+      {/* Sidebar */}
+      <aside className="fixed top-0 left-0 w-64 h-screen bg-primary text-neutral_teks shadow-xl">
+        {/* Logo/Brand */}
+        <div className="p-5 flex justify-between items-center border-b border-secondary/20">
+          <span className="text-xl text-secondary font-semibold">
+            MALEO GOGAKUIN
+          </span>
         </div>
-        <nav className="mt-5 space-y-4">
+
+        {/* Navigation */}
+        <nav className="mt-6 space-y-1 px-2">
           {[
-            { path: "/admin/dashboard/", label: "Dashboard" },
-            { path: "/admin/teacher", label: "Data Guru" },
-            { path: "/admin/student", label: "Data Siswa" },
-            { path: "/admin/absen", label: "Data Absen" },
-          ].map(({ path, label }) => (
-            <NavItem key={path} path={path} label={label} />
+            {
+              path: "/admin/dashboard",
+              label: "Dashboard",
+              icon: <ChartBarIcon className="h-5 w-5" />,
+            },
+            {
+              path: "/admin/teacher",
+              label: "Data Guru",
+              icon: <UserGroupIcon className="h-5 w-5" />,
+            },
+            {
+              path: "/admin/student",
+              label: "Data Siswa",
+              icon: <AcademicCapIcon className="h-5 w-5" />,
+            },
+            {
+              path: "/admin/absen",
+              label: "Data Absen",
+              icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
+            },
+          ].map(({ path, label, icon }) => (
+            <NavItem key={path} path={path} label={label} icon={icon} />
           ))}
         </nav>
-        <UserProfile
-          user={user}
-          isOpen={isProfileOpen}
-          toggle={() => setIsProfileOpen(!isProfileOpen)}
-          onLogout={handleLogout}
-        />
+
+        {/* User Profile - positioned at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-primary/90">
+          <UserProfile
+            user={user}
+            isOpen={isProfileOpen}
+            toggle={() => setIsProfileOpen(!isProfileOpen)}
+            onLogout={handleLogout}
+          />
+        </div>
       </aside>
 
-      <main className="p-4 sm:ml-64">
-        <div className="mt-14">{children}</div>
+      {/* Main Content */}
+      <main className="flex-1 p-6 sm:ml-64 overflow-y-auto">
+        {/* Page Content */}
+        <div className="bg-white rounded-lg shadow-sm p-6">{children}</div>
       </main>
-    </>
+    </div>
   );
 };
 
-const NavItem = ({ path, label }) => (
-  <a
-    href={path}
-    className="block px-4 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-  >
-    {label}
-  </a>
-);
+const NavItem = ({ path, label, icon }) => {
+  const navigate = useNavigate();
+  const isActive = location.pathname === path;
+  return (
+    <button
+      onClick={() => navigate(path)}
+      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all
+      ${
+        isActive
+          ? "bg-secondary/10 text-secondary"
+          : "hover:bg-primary/70 text-neutral_teks/90 hover:text-white"
+      }`}
+    >
+      <span className="mr-3 text-lg">{icon}</span>
+      {label}
+      {isActive && (
+        <span className="ml-auto w-1 h-6 bg-secondary rounded-full"></span>
+      )}
+    </button>
+  );
+};
 
-const UserProfile = ({ user, isOpen, toggle, onLogout }) => (
-  <div className="p-3 border-t dark:border-gray-700">
-    <div className="flex items-center cursor-pointer" onClick={toggle}>
-      <img
-        className="w-12 h-12 rounded-full"
-        src={"/public/images/shoes1.jpg"}
-        alt="User Profile"
-      />
-      <div className="ml-3">
-        <p className="font-bold text-gray-800">{user?.name}</p>
-        <p className="text-sm text-gray-600">{user?.email}</p>
+const UserProfile = ({ user, isOpen, toggle, onLogout }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="relative">
+      {/* Profile Toggle Button */}
+      <div
+        className="flex items-center cursor-pointer p-2 rounded-lg hover:bg-primary/70 transition-colors"
+        onClick={toggle}
+      >
+        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-secondary/20 text-secondary font-bold">
+          {user?.name?.charAt(0)?.toUpperCase() || "A"}
+        </div>
+        <div className="ml-3 overflow-hidden">
+          <p className="font-semibold text-white truncate">{user?.name}</p>
+          <p className="text-xs text-neutral_teks/70 truncate">{user?.email}</p>
+        </div>
+        <ChevronDownIcon
+          className={`ml-2 w-4 h-4 text-neutral_teks/70 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </div>
+
+      {/* Profile Dropdown */}
+      {isOpen && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl overflow-hidden z-10 border border-gray-100">
+          <div className="p-4 border-b border-gray-100">
+            <p className="font-medium text-gray-800">{user?.name || "Admin"}</p>
+            <p className="text-sm text-gray-500 truncate">
+              {user?.email || "admin@gmail.com"}
+            </p>
+          </div>{" "}
+          <button
+            className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-neutral_bg transition-colors"
+            onClick={() => navigate(`/admin/edit/${user?.uuid}`)}
+          >
+            <PencilSquareIcon className="h-5 w-5 mr-3 text-primary" />
+            <span>Ubah Profil</span>
+          </button>
+          <button
+            className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-red-50 transition-colors"
+            onClick={onLogout}
+          >
+            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3 text-accent" />
+            <span>Logout</span>
+          </button>
+        </div>
+      )}
     </div>
-    {isOpen && (
-      <div className="mt-3 border-t dark:border-gray-700">
-        <Button
-          classname="w-full text-left p-2 hover:bg-blue-500"
-          onClick={() => navigate(`/admin/edit/${user?.uuid}`)}
-        >
-          Ubah Profil
-        </Button>
-        <Button
-          classname="w-full text-left p-2 hover:bg-red-700"
-          onClick={onLogout}
-        >
-          Logout
-        </Button>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 export default AdminLayout;

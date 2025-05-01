@@ -155,7 +155,7 @@ const FormLogin = () => {
                 {modal.type === "success" ? (
                   <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary bg-opacity-20">
                     <svg
-                      className="h-6 w-6 text-primary"
+                      className="h-6 w-6 text-secondary"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -199,7 +199,7 @@ const FormLogin = () => {
                 onClick={closeModal}
                 className={`py-2 px-4 rounded-md text-sm font-medium ${
                   modal.type === "success"
-                    ? "text-primary hover:bg-primary hover:bg-opacity-10"
+                    ? "text-secondary hover:bg-primary hover:bg-opacity-10"
                     : "text-accent hover:bg-accent hover:bg-opacity-10"
                 }`}
               >
