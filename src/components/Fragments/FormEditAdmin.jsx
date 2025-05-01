@@ -69,12 +69,13 @@ const FormEditAdmin = () => {
       formDataToSend.append("hp", formData.hp);
       formDataToSend.append("email", formData.email);
       formDataToSend.append("role", "Admin");
-      if (formData.password) {
+      // Hanya kirim password jika diisi
+      if (formData.password && formData.password !== "") {
         formDataToSend.append("password", formData.password);
         formDataToSend.append("confPassword", formData.confPassword);
       }
-      if (formData.foto) {
-        formDataToSend.append("foto", formData.foto);
+      if (formData.profileImage) {
+        formDataToSend.append("foto", formData.profileImage);
       }
 
       await axiosInstance.patch(`/admins/${id}`, formDataToSend, {

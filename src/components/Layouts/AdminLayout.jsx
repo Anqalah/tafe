@@ -9,14 +9,14 @@ import {
   ClipboardDocumentListIcon,
   PencilSquareIcon,
   ArrowLeftOnRectangleIcon,
-  BellIcon,
+  UserCircleIcon,
   ChevronDownIcon,
-} from "@heroicons/react/24/outline";
+} from "@heroicons/react/24/solid";
 
 const AdminLayout = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { isError, user } = useSelector((state) => state.auth);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleLogout = () => {
@@ -116,13 +116,23 @@ const UserProfile = ({ user, isOpen, toggle, onLogout }) => {
         className="flex items-center cursor-pointer p-2 rounded-lg hover:bg-primary/70 transition-colors"
         onClick={toggle}
       >
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-secondary/20 text-secondary font-bold">
-          {user?.name?.charAt(0)?.toUpperCase() || "A"}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary/20 flex items-center justify-center">
+          {user?.foto_profile ? (
+            <img
+              src={user.foto_profile_url}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <UserCircleIcon className="h-10 w-10 text-secondary" />
+          )}
         </div>
+
         <div className="ml-3 overflow-hidden">
           <p className="font-semibold text-white truncate">{user?.name}</p>
           <p className="text-xs text-neutral_teks/70 truncate">{user?.email}</p>
         </div>
+
         <ChevronDownIcon
           className={`ml-2 w-4 h-4 text-neutral_teks/70 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
