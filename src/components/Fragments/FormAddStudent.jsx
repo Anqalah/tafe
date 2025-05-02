@@ -50,7 +50,7 @@ const FormAddStudent = () => {
           placeholder="Masukkan nama anda"
           name="name"
           value={name}
-          onchange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
         />
 
         <InputForm
@@ -59,7 +59,7 @@ const FormAddStudent = () => {
           placeholder="contoh@gmail.com"
           name="email"
           value={email}
-          onchange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <InputForm
@@ -68,7 +68,7 @@ const FormAddStudent = () => {
           placeholder="Laki-laki/Perempuan"
           name="jenis kelamin"
           value={jk}
-          onchange={(e) => setJk(e.target.value)}
+          onChange={(e) => setJk(e.target.value)}
         />
 
         <InputForm
@@ -77,7 +77,7 @@ const FormAddStudent = () => {
           placeholder="...tahun"
           name="umur"
           value={umur}
-          onchange={(e) => setUmur(e.target.value)}
+          onChange={(e) => setUmur(e.target.value)}
         />
 
         <InputForm
@@ -86,7 +86,7 @@ const FormAddStudent = () => {
           placeholder="Jl...."
           name="alamat"
           value={alamat}
-          onchange={(e) => setAlamat(e.target.value)}
+          onChange={(e) => setAlamat(e.target.value)}
         />
 
         <InputForm
@@ -95,7 +95,7 @@ const FormAddStudent = () => {
           placeholder="08...."
           name="hp"
           value={hp}
-          onchange={(e) => setHp(e.target.value)}
+          onChange={(e) => setHp(e.target.value)}
         />
 
         <InputForm
@@ -104,7 +104,7 @@ const FormAddStudent = () => {
           placeholder="Pertanian"
           name="bidang"
           value={bidang}
-          onchange={(e) => setBidang(e.target.value)}
+          onChange={(e) => setBidang(e.target.value)}
         />
 
         <InputForm
@@ -113,7 +113,7 @@ const FormAddStudent = () => {
           placeholder="A"
           name="kelas"
           value={kelas}
-          onchange={(e) => setKelas(e.target.value)}
+          onChange={(e) => setKelas(e.target.value)}
         />
 
         <InputForm
@@ -122,7 +122,7 @@ const FormAddStudent = () => {
           placeholder="******"
           name="password"
           value={password}
-          onchange={(e) => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
         />
 
         <InputForm
@@ -131,12 +131,12 @@ const FormAddStudent = () => {
           placeholder="******"
           name="confirmPassword"
           value={confPassword}
-          onchange={(e) => setConfPassword(e.target.value)}
+          onChange={(e) => setConfPassword(e.target.value)}
         />
 
         <Button
           onClick={saveStudent}
-          classname="bg-[#03A9F4] w-full"
+          className="bg-[#03A9F4] w-full"
           type="submit"
         >
           Register
