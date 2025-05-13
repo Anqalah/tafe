@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import Logo from "../../../public/logo";
+import Logo from "../../../public/logo/logo.png";
 
 const AuthLayout = ({ children, title, type }) => {
   return (
