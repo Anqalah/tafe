@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import Logo from "../../../public/logo";
 
 const AuthLayout = ({ children, title, type }) => {
   return (
@@ -8,11 +9,7 @@ const AuthLayout = ({ children, title, type }) => {
         <div className="hidden md:flex md:w-2/5 bg-[#2A4365] p-10 items-center justify-center">
           <div className="text-white text-center space-y-8">
             <div className="inline-block bg-white p-8 rounded-3xl">
-              <img
-                src="../../../public/logo/logo.png"
-                alt="Logo Institusi"
-                className=""
-              />
+              <img src={Logo} alt="Logo Institusi" className="" />
             </div>
             <h2 className="text-4xl font-bold leading-tight text-[#D4AF37]">
               LPK MALEO GOGAKUIN
