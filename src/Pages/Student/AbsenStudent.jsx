@@ -1,150 +1,87 @@
 import React from "react";
 import StudentLayout from "../../components/Layouts/StudentLayout";
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CheckCircleIcon,
+} from "@heroicons/react/24/outline";
 
 const AbsenStudent = () => {
   return (
     <StudentLayout>
-      <div className="space-y-5">
-        <p className="font-semibold text-center">KEHADIRAN</p>
+      <div className="space-y-4 p-6">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
+            <CalendarIcon className="w-8 h-8" />
+            Rekap Kehadiran
+          </h1>
+          <p className="text-gray-600 mt-2">Riwayat presensi harian siswa</p>
+        </div>
 
-        <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-          <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-            <thead class="text-[10px] text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-primary text-neutral_teks">
               <tr>
-                <th scope="col" class="px-2 py-2">
+                <th className="px-4 py-3 text-left text-sm font-semibold">
                   Hari
                 </th>
-                <th scope="col" class="px-2 py-2">
+                <th className="px-4 py-3 text-left text-sm font-semibold">
                   Tanggal
                 </th>
-                <th scope="col" class="px-2 py-2">
+                <th className="px-4 py-3 text-left text-sm font-semibold">
                   Keterangan
                 </th>
               </tr>
             </thead>
-            <tbody>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
-              <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                <td class="px-2 py-2">Kamis</td>
-                <td class="px-2 py-2">10-10-2024</td>
-                <td class="px-2 py-2">Hadir</td>
-              </tr>
+            <tbody className="divide-y divide-gray-100">
+              {[...Array(6)].map((_, i) => (
+                <tr key={i} className="hover:bg-neutral_bg transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-800">Kamis</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    10-10-2024
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/10 text-secondary text-sm">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Hadir
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        <nav aria-label="Page navigation example">
-          <ul class="flex items-center justify-center -space-x-px h-8 text-sm">
+        {/* Pagination */}
+        <nav className="flex justify-center">
+          <ul className="flex items-center gap-1">
             <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 ms-0 leading-tight text-gray-500 bg-white border border-e-0 border-gray-300 rounded-s-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                <span class="sr-only">Previous</span>
-                <svg
-                  class="w-2.5 h-2.5 rtl:rotate-180"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 6 10"
+              <button className="p-2 text-primary hover:bg-primary/10 rounded-lg">
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+            </li>
+
+            {[1, 2, 3, 4, 5].map((page) => (
+              <li key={page}>
+                <button
+                  className={`px-3 py-1 rounded-lg ${
+                    page === 3
+                      ? "bg-primary text-white"
+                      : "text-gray-600 hover:bg-primary/10"
+                  }`}
                 >
-                  <path
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 1 1 5l4 4"
-                  />
-                </svg>
-              </a>
-            </li>
+                  {page}
+                </button>
+              </li>
+            ))}
+
             <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                1
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                2
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                aria-current="page"
-                class="z-10 flex items-center justify-center px-3 h-8 leading-tight text-blue-600 border border-blue-300 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-              >
-                3
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                4
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                5
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 rounded-e-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-              >
-                <span class="sr-only">Next</span>
-                <svg
-                  class="w-2.5 h-2.5 rtl:rotate-180"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 6 10"
-                >
-                  <path
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="m1 9 4-4-4-4"
-                  />
-                </svg>
-              </a>
+              <button className="p-2 text-primary hover:bg-primary/10 rounded-lg">
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
             </li>
           </ul>
         </nav>

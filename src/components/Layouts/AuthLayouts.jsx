@@ -11,7 +11,7 @@ const AuthLayout = ({ children, title, type }) => {
               <img
                 src="../../../public/logo/logo.png"
                 alt="Logo Institusi"
-                className="w-40 h-40 object-contain"
+                className=""
               />
             </div>
             <h2 className="text-4xl font-bold leading-tight text-[#D4AF37]">

@@ -11,9 +11,9 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
-const ClockInResults = () => {
+const ClockOutResults = () => {
   const { id } = useParams();
-  const [clockInData, setClockInData] = useState([]);
+  const [ClockOutData, setClockOutData] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ const ClockInResults = () => {
     const fetchAttendance = async () => {
       try {
         const response = await axiosInstance.get(`/attendances/${id}`);
-        setClockInData(response.data); // Bisa array atau objek tergantung respons
+        setClockOutData(response.data); // Bisa array atau objek tergantung respons
       } catch (error) {
         console.error("Error fetching attendance:", error);
         setMessage(error.response?.data?.msg || "Gagal memuat data kehadiran.");
@@ -87,13 +87,13 @@ const ClockInResults = () => {
             <span>{message}</span>
           </div>
         ) : (
-          clockInData && (
+          ClockOutData && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {renderDetailItem(
                   <CalendarIcon />,
                   "Tanggal Presensi",
-                  new Date(clockInData.Date).toLocaleDateString("id-ID", {
+                  new Date(ClockOutData.Date).toLocaleDateString("id-ID", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -103,47 +103,28 @@ const ClockInResults = () => {
 
                 {renderDetailItem(
                   <ClockIcon />,
-                  "Waktu Clock In",
-                  new Date(clockInData.ClockIn).toLocaleTimeString("id-ID")
+                  "Waktu Clock Out",
+                  new Date(ClockOutData.clockOut).toLocaleTimeString("id-ID")
                 )}
 
                 {renderDetailItem(
                   <MapPinIcon />,
-                  "Lokasi Clock In",
-                  clockInData.LocationClockIn
+                  "Lokasi Clock Out",
+                  ClockOutData.LocationClockOut
                 )}
               </div>
 
-              {(clockInData.facePhotoClockIn ||
-                clockInData.facePhotoClockOut) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {clockInData.facePhotoClockIn && (
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <h3 className="flex items-center gap-2 text-lg font-semibold text-primary mb-4">
-                        <CheckCircleIcon className="w-5 h-5" />
-                        Foto Clock In
-                      </h3>
-                      <img
-                        src={clockInData.facePhotoClockIn}
-                        alt="Clock-in"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
-
-                  {clockInData.facePhotoClockOut && (
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <h3 className="flex items-center gap-2 text-lg font-semibold text-primary mb-4">
-                        <CheckCircleIcon className="w-5 h-5" />
-                        Foto Clock Out
-                      </h3>
-                      <img
-                        src={clockInData.facePhotoClockOut}
-                        alt="Clock-out"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
+              {ClockOutData.facePhotoClockOut && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-primary mb-4">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    Foto Clock Out
+                  </h3>
+                  <img
+                    src={ClockOutData.facePhotoClockOut}
+                    alt="Clock-out"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
                 </div>
               )}
             </div>
@@ -154,4 +135,4 @@ const ClockInResults = () => {
   );
 };
 
-export default ClockInResults;
+export default ClockOutResults;

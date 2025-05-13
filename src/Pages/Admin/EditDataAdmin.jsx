@@ -1,15 +1,15 @@
 import { Fragment } from "react";
-import FormEditTeacher from "../../components/Fragments/FormEditTeacher";
 import AdminLayout from "../../components/Layouts/AdminLayout";
+import FormEditDataAdmin from "../../components/Fragments/FormEditDataAdmin";
 
-const EditTeacher = () => {
+const EditDataAdmin = () => {
   return (
     <Fragment>
       <AdminLayout>
-        <FormEditTeacher />
+        <FormEditDataAdmin />
       </AdminLayout>
     </Fragment>
   );
 };
 
-export default EditTeacher;
+export default EditDataAdmin;

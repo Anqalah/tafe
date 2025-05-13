@@ -21,10 +21,6 @@ const FormLogin = () => {
   );
 
   useEffect(() => {
-    dispatch(reset());
-  }, [dispatch]);
-
-  useEffect(() => {
     if (user && isSuccess) {
       setModal({
         show: true,

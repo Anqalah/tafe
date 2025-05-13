@@ -8,18 +8,8 @@ import AdminLayout from "../../components/Layouts/AdminLayout";
 const DashboardAdmin = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const { isError } = useSelector((state) => state.auth);
-
-  const getTeachers = async () => {
-    try {
-      const response = await axiosInstance.get("/teachers");
-      setTeachers(response.data);
-    } catch (error) {
-      console.error("Failed to fetch teachers:", error);
-    }
-  };
 
   const getStudents = async () => {
     try {
@@ -31,20 +21,6 @@ const DashboardAdmin = () => {
   };
 
   useEffect(() => {
-    const fetchTeachers = async () => {
-      try {
-        const response = await axiosInstance.get("/teachers");
-        console.log("Response:", response); // Debugging
-      } catch (error) {
-        console.error("Error fetching teachers:", error);
-      }
-    };
-
-    fetchTeachers();
-  }, []);
-
-  useEffect(() => {
-    getTeachers();
     getStudents();
   }, []);
 
@@ -107,12 +83,12 @@ const DashboardAdmin = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-yellow-100 rounded-xl text-gray-800">
+                  {/* <div className="p-4 bg-yellow-100 rounded-xl text-gray-800">
                     <div className="font-bold text-2xl leading-none">
                       {teachers.length}
                     </div>
                     <div className="mt-2">Guru</div>
-                  </div>
+                  </div> */}
                   <div className="p-4 bg-yellow-100 rounded-xl text-gray-800">
                     <div className="font-bold text-2xl leading-none">
                       {students.length}

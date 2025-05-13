@@ -1,5 +1,12 @@
+import {
+  CameraIcon,
+  MapPinIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../../config/axios";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import LocationMap from "../../components/Elements/LocationMap/LocationMap";
@@ -9,25 +16,28 @@ const ClockIn = () => {
   const [longitude, setLongitude] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const [message, setMessage] = useState("");
+
+  const { isError, user: authUser } = useSelector((state) => state.auth);
   const [user, setUser] = useState(null);
+
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
+    const getUser = async () => {
+      try {
+        const response = await axiosInstance.get("/me");
+        setUser(response.data);
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        setMessage("Gagal mengambil data pengguna.");
+      }
+    };
+
     getUser();
     startVideo();
   }, []);
-
-  const getUser = async () => {
-    try {
-      const response = await axiosInstance.get("/me");
-      setUser(response.data);
-    } catch (error) {
-      console.error("Error fetching user data: ", error);
-      setMessage("Failed to load user data.");
-    }
-  };
 
   const startVideo = () => {
     if (videoRef.current) {
@@ -38,7 +48,7 @@ const ClockIn = () => {
         })
         .catch((error) => {
           console.error("Error accessing webcam: ", error);
-          setMessage("Unable to access camera.");
+          setMessage("Tidak dapat mengakses kamera.");
         });
     }
   };
@@ -48,17 +58,15 @@ const ClockIn = () => {
     const video = videoRef.current;
 
     if (!video) {
-      setMessage("Camera not found.");
+      setMessage("Kamera tidak ditemukan.");
       return;
     }
 
-    // Ambil gambar dari video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
     setImageSrc(canvas.toDataURL("image/png"));
 
-    // Ambil lokasi
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -67,112 +75,171 @@ const ClockIn = () => {
         },
         (error) => {
           console.error("Error getting location: ", error);
-          setMessage("Unable to retrieve location.");
+          if (error.code === 1) {
+            setMessage("Izin lokasi ditolak. Silakan aktifkan izin lokasi.");
+          } else if (error.code === 2) {
+            setMessage("Lokasi tidak tersedia. Pastikan GPS aktif.");
+          } else if (error.code === 3) {
+            setMessage("Permintaan lokasi timeout. Coba lagi.");
+          } else {
+            setMessage("Gagal mengambil lokasi.");
+          }
         }
       );
     } else {
-      setMessage("Geolocation is not supported by this browser.");
+      setMessage("Browser tidak mendukung Geolocation.");
+    }
+  };
+
+  const clockIn = async ({ studentId, latitude, longitude, imageSrc }) => {
+    try {
+      const response = await fetch(imageSrc);
+      const blob = await response.blob();
+      const file = new File([blob], "facePhoto.png", { type: "image/png" });
+
+      const formData = new FormData();
+      formData.append("studentId", studentId);
+      formData.append("latitude", latitude);
+      formData.append("longitude", longitude);
+      formData.append("type", "clockIn");
+      formData.append("foto", file);
+
+      const res = await axiosInstance.post("/attendances", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      return res.data;
+    } catch (error) {
+      console.error(
+        "Clock-in error:",
+        error.response?.data?.msg || error.message
+      );
+      throw new Error(error.response?.data?.msg || "Clock-in failed");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!latitude || !longitude || !imageSrc) {
-      setMessage("Please ensure all fields are filled.");
+    if (!latitude || !longitude || !imageSrc || !user?.uuid) {
+      setMessage("Mohon pastikan semua data tersedia.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("latitude", latitude);
-    formData.append("longitude", longitude);
-    formData.append("facePhotoClockIn", dataURLtoBlob(imageSrc));
-
     try {
-      const response = await axiosInstance.post(
-        `/attendances/clockin/${user.uuid}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      setMessage(response.data.msg);
-      navigate("/attendances/clockin-results/");
-    } catch (error) {
-      console.error("Error during submission:", error);
-      setMessage(error.response?.data?.msg || "An error occurred");
-    }
-  };
+      const result = await clockIn({
+        studentId: user.uuid,
+        latitude,
+        longitude,
+        imageSrc,
+      });
 
-  const dataURLtoBlob = (dataURL) => {
-    const byteString = atob(dataURL.split(",")[1]);
-    const mimeString = dataURL.split(",")[0].split(":")[1].split(";")[0];
-    const ab = new Uint8Array(byteString.length);
-    for (let i = 0; i < byteString.length; i++) {
-      ab[i] = byteString.charCodeAt(i);
+      setMessage(result.msg);
+      navigate(`/attendances/clockin-results/${authUser?.id}`);
+    } catch (error) {
+      setMessage(error.message);
     }
-    return new Blob([ab], { type: mimeString });
   };
 
   return (
     <StudentLayout>
-      <div className="max-w-md mx-auto p-4">
-        <h2 className="text-xl font-semibold mb-4">Clock In Siswa</h2>
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
+        {/* Header Section */}
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
+            <ClockIcon className="w-8 h-8" />
+            Clock In
+          </h2>
+          <p className="text-gray-600 mt-2">Lakukan presensi harian anda</p>
+        </div>
 
-        {imageSrc == null && (
-          <>
-            <div className="mb-4">
+        {/* Camera Section */}
+        {!imageSrc && (
+          <div className="bg-white rounded-xl shadow-lg p-4">
+            <div className="aspect-video relative bg-gray-100 rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
                 autoPlay
-                className="w-full border border-gray-300 rounded"
+                muted
+                className="w-full h-full object-cover"
               />
-              <canvas ref={canvasRef} style={{ display: "none" }} />
             </div>
+
             <button
               type="button"
               onClick={captureImageAndLocation}
-              className="w-full bg-blue-500 text-white p-2 rounded mb-4"
+              className="w-full mt-4 bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
             >
+              <CameraIcon className="w-5 h-5" />
               Ambil Foto & Lokasi
             </button>
-          </>
+          </div>
         )}
 
+        {/* Preview Section */}
         {imageSrc && (
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Foto Wajah:</h3>
-            <img
-              src={imageSrc}
-              alt="Captured face"
-              className="w-full border border-gray-300 rounded"
-            />
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-4">
+              <h3 className="text-lg font-semibold text-primary mb-4">
+                Preview Presensi
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Photo Preview */}
+                <div className="space-y-2">
+                  <img
+                    src={imageSrc}
+                    alt="Foto presensi"
+                    className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                  />
+                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <CameraIcon className="w-4 h-4" />
+                    Foto Presensi
+                  </p>
+                </div>
+
+                {/* Location Preview */}
+                <div className="space-y-2">
+                  <div className="h-48 rounded-lg border border-gray-200 overflow-hidden">
+                    <LocationMap
+                      latitude={latitude}
+                      longitude={longitude}
+                      onMapClick={() => {}}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <MapPinIcon className="w-4 h-4" />
+                    <span>
+                      {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <form onSubmit={handleSubmit}>
+              <button
+                type="submit"
+                className="w-full bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <ClockIcon className="w-5 h-5" />
+                Konfirmasi Clock In
+              </button>
+            </form>
           </div>
         )}
 
-        {latitude && longitude && (
-          <div className="mb-4">
-            <p>Latitude: {latitude}</p>
-            <p>Longitude: {longitude}</p>
+        {/* Message Alert */}
+        {message && (
+          <div className="p-4 rounded-lg bg-red-50 text-red-700 flex items-center gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
+            <span>{message}</span>
           </div>
         )}
 
-        {latitude && longitude && (
-          <LocationMap latitude={latitude} longitude={longitude} />
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {imageSrc !== null && (
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white p-2 rounded"
-            >
-              Clock In
-            </button>
-          )}
-          {message && <p className="text-red-500">{message}</p>}
-        </form>
+        <canvas ref={canvasRef} style={{ display: "none" }} />
       </div>
     </StudentLayout>
   );

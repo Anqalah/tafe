@@ -45,8 +45,8 @@ const AdminLayout = ({ children }) => {
               icon: <ChartBarIcon className="h-5 w-5" />,
             },
             {
-              path: "/admin/teacher",
-              label: "Data Guru",
+              path: "/data/admin",
+              label: "Data Admin",
               icon: <UserGroupIcon className="h-5 w-5" />,
             },
             {
@@ -119,9 +119,13 @@ const UserProfile = ({ user, isOpen, toggle, onLogout }) => {
         <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary/20 flex items-center justify-center">
           {user?.foto_profile ? (
             <img
-              src={user.foto_profile_url}
+              src={user.foto_profile}
               alt="Profile"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/default_profile.png"; // fallback jika gagal load
+              }}
             />
           ) : (
             <UserCircleIcon className="h-10 w-10 text-secondary" />
