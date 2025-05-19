@@ -50,12 +50,12 @@ const AdminLayout = ({ children }) => {
               icon: <UserGroupIcon className="h-5 w-5" />,
             },
             {
-              path: "/admin/student",
+              path: "/data/student",
               label: "Data Siswa",
               icon: <AcademicCapIcon className="h-5 w-5" />,
             },
             {
-              path: "/admin/absen",
+              path: "/data/absen",
               label: "Data Absen",
               icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
             },

@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from "react";
-import AdminLayout from "../../components/Layouts/AdminLayout";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/solid";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "../../components/Elements/Button";
+import DeleteConfirmationModal from "../../components/Elements/Modals/DeleteConfirmation";
+import AdminLayout from "../../components/Layouts/AdminLayout";
 import axiosInstance from "../../config/axios";
-import {
-  PencilSquareIcon,
-  TrashIcon,
-  PlusIcon,
-} from "@heroicons/react/24/solid";
-import DeleteConfirmationModal from "../../components/Elements/Modals/DeleteConfirmation"
 
-const StudentAdmin = () => {
+const DataStudent = () => {
   const [users, setUsers] = useState([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -52,20 +48,10 @@ const StudentAdmin = () => {
         studentName={selectedStudent?.name || ""}
       />
 
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-primary">Data Siswa</h1>
-        <Link to="add">
-          <Button className="flex items-center gap-2 text-white py-2 px-4 bg-secondary hover:bg-secondary/90 rounded-lg transition-colors">
-            <PlusIcon className="h-5 w-5" />
-            <span>Tambah Siswa</span>
-          </Button>
-        </Link>
-      </div>
-
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-700">
-            <thead className="text-xs text-white uppercase bg-primary">
+            <thead className="text-xs text-secondary uppercase bg-primary">
               <tr>
                 <th scope="col" className="px-6 py-4">
                   No
@@ -92,10 +78,7 @@ const StudentAdmin = () => {
             </thead>
             <tbody>
               {users.map((user, index) => (
-                <tr
-                  key={user.uuid}
-                  className="border-b border-gray-100 hover:bg-neutral_bg transition-colors"
-                >
+                <tr key={user.uuid} className="border-b ">
                   <td className="px-6 py-4 font-medium text-gray-900">
                     {index + 1}
                   </td>
@@ -108,7 +91,7 @@ const StudentAdmin = () => {
                   <td className="px-6 py-4">{user.bidang}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-2">
-                      <Link to={`/admin/student/edit/${user.uuid}`}>
+                      <Link to={`/data/student/edit/${user.uuid}`}>
                         <Button className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                           <PencilSquareIcon className="h-4 w-4" />
                           <span>Edit</span>
@@ -133,4 +116,4 @@ const StudentAdmin = () => {
   );
 };
 
-export default StudentAdmin;
+export default DataStudent;

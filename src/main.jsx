@@ -5,24 +5,24 @@ import { Provider } from "react-redux";
 import { createBrowserRouter, Link, RouterProvider } from "react-router-dom";
 import { store } from "./App/store";
 import "./index.css";
-import AbsenAdmin from "./Pages/Admin/AbsenAdmin";
 import AddAdmin from "./Pages/Admin/AddAdmin.jsx";
 import DashboardAdmin from "./Pages/Admin/DashboardAdmin";
+import DataAbsen from "./Pages/Admin/DataAbsen.jsx";
 import DataAdmin from "./Pages/Admin/DataAdmin.jsx";
+import DataStudent from "./Pages/Admin/DataStudent.jsx";
 import EditAdmin from "./Pages/Admin/EditAdmin.jsx";
 import EditDataAdmin from "./Pages/Admin/EditDataAdmin.jsx";
-import StudentAdmin from "./Pages/Admin/StudentAdmin";
 import FaceRegister from "./Pages/Auth/FaceRegister.jsx";
 import LoginPage from "./Pages/Auth/login.jsx";
 import RegisterPage from "./Pages/Auth/register.jsx";
 import AbsenStudent from "./Pages/Student/AbsenStudent";
-import AddStudent from "./Pages/Student/AddStudent.jsx";
 import ClockIn from "./Pages/Student/ClockIn.jsx";
 import ClockInResults from "./Pages/Student/ClockInResult.jsx";
 import ClockOut from "./Pages/Student/ClockOut.jsx";
+import ClockOutResults from "./Pages/Student/ClockOutResult.jsx";
 import DashboardStudent from "./Pages/Student/DashboardStudent.jsx";
 import ProfileStudent from "./Pages/Student/ProfileStudent";
-import ClockOutResults from "./Pages/Student/ClockOutResult.jsx";
+import EditDataStudent from "./Pages/Admin/EditDataStudent.jsx";
 
 axios.defaults.withCredentials = true;
 
@@ -84,7 +84,7 @@ const router = createBrowserRouter([
     element: <DataAdmin />,
   },
   {
-    path: "/admin/edit/:id",
+    path: "/data/edit/:id",
     element: <EditAdmin />,
   },
   {
@@ -96,17 +96,16 @@ const router = createBrowserRouter([
     element: <AddAdmin />,
   },
   {
-    path: "/admin/student",
-    element: <StudentAdmin />,
+    path: "/data/student",
+    element: <DataStudent />,
   },
   {
-    path: "admin/student/add",
-    element: <AddStudent />,
+    path: "/data/student/edit/:id",
+    element: <EditDataStudent />,
   },
-
   {
-    path: "/admin/absen",
-    element: <AbsenAdmin />,
+    path: "/data/absen",
+    element: <DataAbsen />,
   },
 ]);
 

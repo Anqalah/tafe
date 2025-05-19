@@ -17,7 +17,6 @@ const ClockOutResults = () => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   useEffect(() => {
     const fetchAttendance = async () => {
       try {

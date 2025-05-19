@@ -172,12 +172,12 @@ const FormRegister = () => {
             label="Bidang Keahlian"
             name="bidang"
             options={[
-              "Pertanian",
               "Konstruksi",
               "Perikanan",
+              "Pertanian",
+              "Peternakan",
               "Pengolahan Makanan",
-              "Teknologi Informasi",
-              "Otomotif",
+              "Perawat Lansia",
             ]}
             register={register}
             errors={errors}
@@ -186,7 +186,7 @@ const FormRegister = () => {
           <SelectField
             label="Kelas"
             name="kelas"
-            options={["A", "B", "C", "D"]}
+            options={["A", "B"]}
             register={register}
             errors={errors}
             required

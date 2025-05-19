@@ -3,6 +3,7 @@ import AdminLayout from "../../components/Layouts/AdminLayout";
 import axiosInstance from "../../config/axios";
 import { Link } from "react-router-dom";
 import Button from "../../components/Elements/Button";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const DataAdmin = () => {
   const [users, setUsers] = useState([]);
@@ -18,16 +19,14 @@ const DataAdmin = () => {
   };
 
   const deleteUser = async (userId) => {
-    await axiosInstance.delete(`/admin/${userId}`);
+    await axiosInstance.delete(`/admins/${userId}`);
     getUsers();
   };
 
   return (
     <AdminLayout>
       <Link to="add">
-        <Button className="flex my-1 py-2 px-3 text-white bg-green-600">
-          Tambah
-        </Button>
+        <Button className="mb-2 text-white bg-green-600">Tambah</Button>
       </Link>
       <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
@@ -59,20 +58,26 @@ const DataAdmin = () => {
                 <td className="px-6 py-4 text-gray-900">{index + 1}</td>
                 <td className="px-6 py-4 text-gray-900">{user.name}</td>
                 <td className="px-6 py-4 text-gray-900">{user.hp}</td>
-                <td className=" text-gray-900">
-                  <img src={user.foto_profile} alt="Foto Profil" />
+                <td className="px-6 py-4 text-gray-900">
+                  <img
+                    src={user.foto_profile}
+                    alt="Foto Profil"
+                    className="w-10 h-10 object-cover rounded"
+                  />
                 </td>
                 <td className="flex items-center justify-center gap-2 py-2">
                   <Link to={`/data/admin/edit/${user.uuid}`}>
-                    <Button className="px-4 rounded-lg bg-blue-700 text-white">
-                      Edit
+                    <Button className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                      <PencilSquareIcon className="h-4 w-4" />
+                      <span>Edit</span>
                     </Button>
                   </Link>
                   <Button
                     onClick={() => deleteUser(user.uuid)}
-                    className="px-2 rounded-lg bg-red-700 text-white"
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                   >
-                    Hapus
+                    <TrashIcon className="h-4 w-4" />
+                    <span>Hapus</span>
                   </Button>
                 </td>
               </tr>

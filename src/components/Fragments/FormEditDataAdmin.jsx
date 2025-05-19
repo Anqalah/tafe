@@ -1,10 +1,9 @@
+import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
 import React, { useEffect, useState } from "react";
-import axiosInstance from "../../config/axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { InputForm } from "../Elements/Input";
+import axiosInstance from "../../config/axios";
 import Button from "../Elements/Button";
-import { CameraIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
-import AdminLayout from "../Layouts/AdminLayout";
+import { InputForm } from "../Elements/Input";
 
 const FormEditDataAdmin = () => {
   const [formData, setFormData] = useState({
@@ -95,34 +94,35 @@ const FormEditDataAdmin = () => {
   };
 
   return (
-    <AdminLayout>
-      <div className="p-6 bg-white ">
-        <div className="flex items-center mb-2 ">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center rounded-full hover:bg-neutral_bg transition-colors"
-          >
-            <div className="p-2 ">
-              <ArrowLeftIcon className="h-4 w-4 text-primary" />
-            </div>
-            <h2 className="text-xl font-semibold text-primary">
-              Edit Profil Admin
-            </h2>
-          </button>
-        </div>
+    <div className=" mb-4">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-200">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 group"
+        >
+          <div className=" rounded-full group-hover:bg-primary/10 transition-colors">
+            <ArrowLeftIcon className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-primary">Edit Data Admin</h2>
+        </button>
 
         {msg && (
-          <div className="mb-4 bg-accent/10 text-accent rounded-md text-sm">
+          <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
             {msg}
           </div>
         )}
 
-        <form onSubmit={updateAdmin} className="space-y-6">
-          {/* Profile Picture Upload */}
-          <div className="flex flex-col items-center">
-            <div className="relative mb-3 flex flex-col items-center">
-              <label htmlFor="profileImage" className="cursor-pointer relative">
-                <div className="w-20 h-20 rounded-full bg-neutral_bg border-2 border-primary/20 flex items-center justify-center overflow-hidden mb-2">
+        {/* Form Content */}
+        <div className="p-4">
+          <form onSubmit={updateAdmin} className="space-y-6">
+            {/* Profile Picture */}
+            <div className="flex flex-col items-center">
+              <label
+                htmlFor="profileImage"
+                className="relative cursor-pointer group"
+              >
+                <div className="w-32 h-32 rounded-full bg-gray-100 border-4 border-secondary/20 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-secondary/40">
                   {formData.previewImage ? (
                     <img
                       src={formData.previewImage}
@@ -130,18 +130,18 @@ const FormEditDataAdmin = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-2xl font-bold text-secondary">
+                    <span className="text-4xl font-bold text-primary/50">
                       {formData.name.charAt(0)?.toUpperCase() || "A"}
                     </span>
                   )}
                 </div>
-                <div className="absolute -bottom-1 right-1 bg-secondary p-1.5 rounded-full border-2 border-white">
-                  <CameraIcon className="h-4 w-4 text-white" />
+                <div className="absolute bottom-0 right-0 bg-secondary p-2 rounded-full border-4 border-white shadow-sm">
+                  <CameraIcon className="h-5 w-5 text-white" />
                 </div>
               </label>
-
-              <p className="text-sm text-gray-500 mt-2">Unggah foto profil</p>
-
+              <p className="text-sm text-gray-500 mt-4 text-center">
+                Format: JPG/PNG (maks. 2MB)
+              </p>
               <input
                 id="profileImage"
                 type="file"
@@ -150,70 +150,78 @@ const FormEditDataAdmin = () => {
                 onChange={handleImageChange}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 gap-5">
-            <InputForm
-              label="Nama Lengkap"
-              type="text"
-              placeholder="Masukkan nama anda"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-            />
+            {/* Form Fields */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputForm
+                  label="Nama Lengkap"
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="focus:ring-2 focus:ring-secondary focus:border-primary"
+                />
 
-            <InputForm
-              label="Email"
-              type="email"
-              placeholder="contoh@gmail.com"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-            />
+                <InputForm
+                  label="Email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="focus:ring-2 focus:ring-secondary focus:border-primary"
+                />
+              </div>
 
-            <InputForm
-              label="Nomor HP"
-              type="text"
-              placeholder="08...."
-              name="hp"
-              value={formData.hp}
-              onChange={handleChange}
-            />
+              <div className="grid md:grid-cols-2 gap-6">
+                <InputForm
+                  label="Nomor HP"
+                  type="tel"
+                  name="hp"
+                  value={formData.hp}
+                  onChange={handleChange}
+                  pattern="[0-9]*"
+                  className="focus:ring-2 focus:ring-secondary focus:border-primary"
+                />
+              </div>
 
-            <InputForm
-              label="Password Baru"
-              type="password"
-              placeholder="******"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              helperText="Kosongkan jika tidak ingin mengubah password"
-            />
+              <div className="space-y-2 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputForm
+                    label="Password Baru"
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    helperText="Kosongkan jika tidak ingin mengubah password"
+                    className="focus:ring-2 focus:ring-secondary focus:border-primary"
+                  />
 
-            <InputForm
-              label="Konfirmasi Password"
-              type="password"
-              placeholder="******"
-              name="confPassword"
-              value={formData.confPassword}
-              onChange={handleChange}
-            />
-          </div>
+                  <InputForm
+                    label="Konfirmasi Password"
+                    type="password"
+                    name="confPassword"
+                    value={formData.confPassword}
+                    onChange={handleChange}
+                    className="focus:ring-2 focus:ring-secondary focus:border-primary"
+                  />
+                </div>
+              </div>
 
-          <div className="pt-4">
-            <Button
-              className={`w-full bg-primary hover:bg-primary/90 text-white ${
-                isLoading ? "opacity-70" : ""
-              }`}
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? "Memproses..." : "Simpan Perubahan"}
-            </Button>
-          </div>
-        </form>
+              <Button
+                className={`w-full bg-primary hover:bg-[#1E2E4A] text-white text-lg transition-all ${
+                  isLoading ? "opacity-75 cursor-not-allowed" : ""
+                }`}
+                type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

@@ -116,7 +116,9 @@ const Header = ({
       </h1>
       <div className="relative">
         <img
-          src="/images/shoes1.jpg"
+          src={
+            authUser.foto_profile ? authUser.foto_profile : "/images/shoes1.jpg"
+          }
           alt="profile"
           className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform lg:w-14 lg:h-14 lg:border-gray-200"
           onClick={() => setShowUserModal(!showUserModal)}

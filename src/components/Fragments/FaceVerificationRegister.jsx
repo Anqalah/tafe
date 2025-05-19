@@ -24,7 +24,7 @@ const FaceVerificationRegister = () => {
     type: "",
     message: "",
   });
-
+``
   // Extract token from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);

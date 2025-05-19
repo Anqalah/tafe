@@ -1,7 +1,12 @@
 import { FormAddAdmin } from "../../components/Fragments/FormAddAdmin";
+import AdminLayout from "../../components/Layouts/AdminLayout";
 
 const AddAdmin = () => {
-  return <FormAddAdmin></FormAddAdmin>;
+  return (
+    <AdminLayout>
+      <FormAddAdmin />;
+    </AdminLayout>
+  );
 };
 
 export default AddAdmin;
