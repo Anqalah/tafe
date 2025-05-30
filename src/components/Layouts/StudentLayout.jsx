@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getMe, logout, reset } from "../../Features/authSlice";
 import { Modal } from "../Elements/Modals/Modal.jsx";
 import axiosInstance from "../../config/axios.js";
+import userProfile from "../../../public/images/shoes1.jpg";
 
 const StudentLayout = ({ children }) => {
   const dispatch = useDispatch();
@@ -111,12 +112,12 @@ const StudentLayout = ({ children }) => {
       {/* Header */}
       <header className="sticky z-50 bg-gradient-to-r rounded-b-sm from-primary to-blue-600 shadow-lg lg:static lg:bg-white lg:shadow-md">
         <div className="flex justify-between items-center p-5 lg:max-w-6xl lg:mx-auto lg:px-4">
-          <h1 className="text-secondary font-bold text-xl lg:text-2xl lg:text-primary">
+          <h1 className="text-secondary font-bold text-xl lg:text-2xl lg:text-secondary">
             Student Portal
           </h1>
           <div className="relative">
             <img
-              src={user.foto_profile || "/images/default-avatar.png"}
+              src={user.foto_profile ? user.foto_profile : userProfile}
               alt="profile"
               className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform lg:w-14 lg:h-14 lg:border-gray-200"
               onClick={() => setShowUserModal(!showUserModal)}

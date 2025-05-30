@@ -1,18 +1,17 @@
 import {
-  CalendarIcon,
-  ClockIcon,
   ArrowLeftIcon,
+  CalendarIcon,
   CheckCircleIcon,
+  ClockIcon,
   MapPinIcon,
-  XCircleIcon,
   PhotoIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Logo from "../../../public/logo/logo.png";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
-import { Dialog } from "@headlessui/react";
 
 const ClockInResults = () => {
   const { id } = useParams();
@@ -21,14 +20,6 @@ const ClockInResults = () => {
   const [loading, setLoading] = useState(true);
   const [mapComponents, setMapComponents] = useState(null);
   const navigate = useNavigate();
-
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState("");
-
-  const handlePhotoClick = (photoUrl) => {
-    setSelectedPhoto(photoUrl);
-    setIsPhotoModalOpen(true);
-  };
 
   // Konfigurasi custom icon marker
   const customIcon = L.icon({
@@ -79,7 +70,6 @@ const ClockInResults = () => {
               <img src={Logo} alt="Marker" className="w-12 h-12 mx-auto mb-2" />
               <h4 className="font-semibold text-primary">Lokasi Clock-In</h4>
               <p className="text-sm text-secondary">
-                {" "}
                 {position[0].toFixed(6)}, {position[1].toFixed(6)}
               </p>
             </div>
@@ -135,7 +125,6 @@ const ClockInResults = () => {
     </div>
   );
 
-  // Fungsi untuk memproses koordinat
   const processCoordinates = (locationString) => {
     if (!locationString) return null;
     const coordinates = locationString.split(",").map(Number);
@@ -151,12 +140,12 @@ const ClockInResults = () => {
 
   return (
     <StudentLayout>
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      <div className="max-w-6xl sm:p-6 lg:p-8 ">
         {/* Header Section */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between">
           <button
             onClick={() => navigate("/student/dashboard")}
-            className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors  px-4 py-2 rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors  rounded-lg hover:bg-gray-50"
           >
             <ArrowLeftIcon className="w-5 h-5" />
             <span className="font-medium">Kembali ke Dashboard</span>
@@ -183,19 +172,17 @@ const ClockInResults = () => {
           </div>
         ) : (
           clockInData && (
-            <div className="space-y-8">
+            <div className="space-y-4">
               {/* Main Header */}
-              <div className="text-center space-y-2 mb-12">
+              <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-3 bg-primary/10 px-6 py-2 rounded-full">
                   <CheckCircleIcon className="w-6 h-6 text-primary" />
-                  <span className="font-semibold text-primary">
-                    Presensi Berhasil
+                  <span className="text-2xl font-bold text-primary">
+                    Clock In Berhasil
                   </span>
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 mt-4">
-                  Detail Presensi Harian
-                </h1>
               </div>
+
               {/* Info Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {renderDetailItem(
@@ -225,128 +212,73 @@ const ClockInResults = () => {
                   !clockInData.isWithinRadius
                 )}
               </div>
-              {/* Map Section */}
-              <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-                <h3 className="flex items-center gap-3 text-xl font-semibold text-gray-900 mb-6">
-                  <MapPinIcon className="w-7 h-7 text-primary stroke-2" />
-                  Lokasi Presensi
-                </h3>
-                <div className="h-96 rounded-xl overflow-hidden border border-gray-200 relative">
-                  {clockInData.LocationClockIn &&
-                    (() => {
-                      const coordinates = processCoordinates(
-                        clockInData.LocationClockIn
-                      );
-                      return coordinates ? (
-                        <>
-                          {" "}
-                          <MapComponent position={coordinates} />
-                          <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md text-sm z-[1000]">
-                            <span className="text-primary font-medium">
-                              Koordinat:
-                            </span>{" "}
-                            {coordinates[0].toFixed(6)},{" "}
-                            {coordinates[1].toFixed(6)}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="h-full flex items-center justify-center bg-gray-50 text-gray-500">
-                          <XCircleIcon className="w-8 h-8 mr-2" />
-                          Format lokasi tidak valid
-                        </div>
-                      );
-                    })()}
-                </div>
-              </div>
-              {/* Photos Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {clockInData.facePhotoClockIn && (
-                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="flex items-center gap-3 text-xl font-semibold text-gray-900">
-                        <PhotoIcon className="w-7 h-7 text-primary stroke-2" />
-                        Foto Clock In
-                      </h3>
-                      <button
-                        onClick={() =>
-                          handlePhotoClick(clockInData.facePhotoClockIn)
-                        }
-                        className="text-primary hover:text-primary/80 transition-colors"
-                      >
-                        Perbesar →
-                      </button>
-                    </div>
-                    <div className="relative aspect-square rounded-xl overflow-hidden cursor-zoom-in">
-                      <img
-                        src={clockInData.facePhotoClockIn}
-                        alt="Clock-in"
-                        className="w-full h-full object-cover transition-transform hover:scale-105"
-                        onClick={() =>
-                          handlePhotoClick(clockInData.facePhotoClockIn)
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
 
-                {clockInData.facePhotoClockOut && (
-                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="flex items-center gap-3 text-xl font-semibold text-primary">
-                        <PhotoIcon className="w-7 h-7 text-primary stroke-2" />
-                        Foto Clock Out
-                      </h3>
-                      <button
-                        onClick={() =>
-                          handlePhotoClick(clockInData.facePhotoClockOut)
-                        }
-                        className="text-primary hover:text-primary/80 transition-colors"
-                      >
-                        Perbesar →
-                      </button>
+              {/* Layout Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Photos Section */}
+                <div className="space-y-4">
+                  {clockInData.facePhotoClockIn && (
+                    <div className="group bg-white p-3 rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 flex flex-col">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded-lg">
+                            <PhotoIcon className="w-6 h-6 text-primary" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-800">
+                            Clock-In
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                        <img
+                          src={clockInData.facePhotoClockIn}
+                          alt="Clock-in"
+                          className="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                      </div>
                     </div>
-                    <div className="relative aspect-square rounded-xl overflow-hidden cursor-zoom-in">
-                      <img
-                        src={clockInData.facePhotoClockOut}
-                        alt="Clock-out"
-                        className="w-full h-full object-cover transition-transform hover:scale-105"
-                        onClick={() =>
-                          handlePhotoClick(clockInData.facePhotoClockOut)
-                        }
-                      />
+                  )}
+                </div>
+
+                {/* Map Section */}
+                <div className="group bg-white p-3 rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 ">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-primary/10 rounded-lg">
+                        <MapPinIcon className="w-4 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        Lokasi Presensi
+                      </h3>
                     </div>
                   </div>
-                )}
+                  <div className="relative h-[320px] rounded-xl overflow-hidden border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100">
+                    {clockInData.LocationClockIn &&
+                      (() => {
+                        const coordinates = processCoordinates(
+                          clockInData.LocationClockIn
+                        );
+                        return coordinates ? (
+                          <>
+                            <MapComponent position={coordinates} />
+                          </>
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center bg-red-50 text-red-600 p-6 text-center">
+                            <XCircleIcon className="w-12 h-12 mb-4" />
+                            <p className="font-medium">
+                              Format lokasi tidak valid
+                            </p>
+                            <p className="text-sm">Silakan cek data GPS Anda</p>
+                          </div>
+                        );
+                      })()}
+                  </div>
+                </div>
               </div>
             </div>
           )
         )}
-
-        {/* Photo Modal */}
-        <Dialog
-          open={isPhotoModalOpen}
-          onClose={() => setIsPhotoModalOpen(false)}
-          className="relative z-50"
-        >
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
-          <div className="fixed inset-0 flex items-center justify-center p-4">
-            <Dialog.Panel className="w-full max-w-4xl bg-white rounded-2xl overflow-hidden">
-              <img
-                src={selectedPhoto}
-                alt="Full size"
-                className="w-full h-full object-contain max-h-[80vh]"
-              />
-              <div className="absolute top-4 right-4">
-                <button
-                  onClick={() => setIsPhotoModalOpen(false)}
-                  className="p-2 bg-white/90 rounded-full shadow-lg hover:bg-white transition-colors"
-                >
-                  <XCircleIcon className="w-6 h-6 text-gray-700" />
-                </button>
-              </div>
-            </Dialog.Panel>
-          </div>
-        </Dialog>
       </div>
     </StudentLayout>
   );
