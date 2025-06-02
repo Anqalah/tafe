@@ -26,6 +26,7 @@ const ClockIn = () => {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const flaskURL = "https://taml.onrender.com";
 
   useEffect(() => {
     const getUser = async () => {
@@ -126,16 +127,12 @@ const ClockIn = () => {
       formData.append("image", imageBlob, "face.png");
 
       // Kirim ke Flask
-      const response = await axios.post(
-        "http://localhost:5000/verify",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 30000,
-        }
-      );
+      const response = await axios.post(`${flaskURL}/verify`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        timeout: 30000,
+      });
       console.log("Verification response:", response.data);
       return response.data;
     } catch (error) {
