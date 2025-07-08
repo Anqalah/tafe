@@ -1,17 +1,12 @@
-import {
-  CameraIcon,
-  MapPinIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
-import React, { useState, useEffect, useRef } from "react";
-import axiosInstance from "../../config/axios";
+import { CameraIcon, ClockIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import axios from "axios";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import StudentLayout from "../../components/Layouts/StudentLayout";
 import LocationMap from "../../components/Elements/LocationMap/LocationMap";
-import axios from "axios";
+import AlertAttendancesModal from "../../components/Elements/Modals/AlertAttendancesModal";
+import StudentLayout from "../../components/Layouts/StudentLayout";
+import axiosInstance from "../../config/axios";
 
 const ClockIn = () => {
   const [latitude, setLatitude] = useState(null);
@@ -19,6 +14,7 @@ const ClockIn = () => {
   const [imageSrc, setImageSrc] = useState(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const { user: authUser } = useSelector((state) => state.auth);
   const [user, setUser] = useState(null);
@@ -26,7 +22,8 @@ const ClockIn = () => {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const flaskURL = "https://taml.onrender.com";
+  const flaskURL = "http://localhost:5000";
+  // const flaskURL = "https://taml.onrender.com";
 
   useEffect(() => {
     const getUser = async () => {
@@ -49,16 +46,26 @@ const ClockIn = () => {
         const tracks = stream.getTracks();
         tracks.forEach((track) => track.stop());
       }
+      if (!showPreviewModal) {
+        setImageSrc(null);
+        setLatitude(null);
+        setLongitude(null);
+      }
     };
   }, []);
 
   const startVideo = () => {
+    // Hentikan stream yang ada terlebih dahulu
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach((track) => track.stop());
+    }
+
     if (videoRef.current) {
       navigator.mediaDevices
         .getUserMedia({
-          video: {
-            facingMode: "user",
-          },
+          video: { facingMode: "user" },
         })
         .then((stream) => {
           videoRef.current.srcObject = stream;
@@ -81,43 +88,52 @@ const ClockIn = () => {
       return;
     }
 
+    // Pastikan video sedang diputar
+    if (video.paused || video.ended) {
+      setMessage("Kamera tidak aktif. Silakan refresh halaman.");
+      return;
+    }
+
+    // Set ukuran canvas sama dengan video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    setImageSrc(canvas.toDataURL("image/png"));
 
-    // Get location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLatitude(position.coords.latitude);
-          setLongitude(position.coords.longitude);
-        },
-        (error) => {
-          console.error("Error getting location: ", error);
-          if (error.code === 1) {
-            setMessage(
-              "Izin lokasi ditolak. Silakan aktifkan izin lokasi di browser Anda."
-            );
-          } else if (error.code === 2) {
-            setMessage(
-              "Lokasi tidak tersedia. Pastikan GPS aktif dan coba di area terbuka."
-            );
-          } else if (error.code === 3) {
-            setMessage("Permintaan lokasi timeout. Silakan coba lagi.");
-          } else {
-            setMessage("Gagal mengambil lokasi. Kode error: " + error.code);
+    // Tambahkan delay kecil untuk memastikan frame siap
+    setTimeout(() => {
+      const context = canvas.getContext("2d");
+
+      // Gambar frame video ke canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      try {
+        // Konversi ke data URL
+        const imageData = canvas.toDataURL("image/png");
+        setImageSrc(imageData);
+      } catch (error) {
+        console.error("Error converting image:", error);
+        setMessage("Gagal mengambil gambar. Silakan coba lagi.");
+        return;
+      }
+
+      // Ambil lokasi
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLatitude(position.coords.latitude);
+            setLongitude(position.coords.longitude);
+            setShowPreviewModal(true);
+          },
+          (error) => {
+            console.error("Error getting location: ", error);
+            // Tetap tampilkan modal meski lokasi gagal
+            setShowPreviewModal(true);
           }
-        },
-        {
-          timeout: 10000,
-          maximumAge: 0,
-          enableHighAccuracy: true,
-        }
-      );
-    } else {
-      setMessage("Browser Anda tidak mendukung Geolocation.");
-    }
+        );
+      } else {
+        setMessage("Browser Anda tidak mendukung Geolocation.");
+        setShowPreviewModal(true);
+      }
+    }, 100); // Delay 100ms
   };
 
   const verifyFace = async (studentId, imageBlob) => {
@@ -243,6 +259,17 @@ const ClockIn = () => {
     }
   };
 
+  const handleClosePreviewModal = () => {
+    setShowPreviewModal(false);
+    setImageSrc(null);
+    setLatitude(null);
+    setLongitude(null);
+    setMessage("");
+    setTimeout(() => {
+      startVideo();
+    }, 100);
+  };
+
   return (
     <StudentLayout>
       <div className="max-w-2xl mx-auto p-6 space-y-6">
@@ -255,10 +282,26 @@ const ClockIn = () => {
           <p className="text-gray-600 mt-2">Lakukan presensi harian anda</p>
         </div>
 
-        {/* Camera Section */}
-        {!imageSrc && (
+        {/* Loading State */}
+        {isLoading && (
+          <div className="space-y-4 animate-pulse">
+            <div className="bg-white rounded-xl shadow-lg p-4">
+              <div className="aspect-video relative bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-gray-300 rounded-full mb-4"></div>
+                  <div className="h-4 w-32 bg-gray-300 rounded"></div>
+                </div>
+              </div>
+              <div className="w-full mt-4 h-12 bg-gray-200 rounded-lg"></div>
+            </div>
+          </div>
+        )}
+
+        {/* Camera Section (when not loading) */}
+        {!isLoading && !imageSrc && (
           <div className="bg-white rounded-xl shadow-lg p-4">
-            <div className="aspect-video relative bg-gray-100 rounded-lg overflow-hidden">
+            {/* Ubah aspect ratio menjadi portrait (3:4) untuk mobile dan tetap landscape (16:9) untuk desktop */}
+            <div className="aspect-[9/8] md:aspect-video relative bg-gray-100 rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
                 autoPlay
@@ -270,9 +313,11 @@ const ClockIn = () => {
 
             <button
               type="button"
-              onClick={captureImageAndLocation}
-              className="w-full mt-4 bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              disabled={isLoading}
+              onClick={() => {
+                captureImageAndLocation();
+                setShowPreviewModal(true);
+              }}
+              className="w-full mt-4 bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
             >
               <CameraIcon className="w-5 h-5" />
               Ambil Foto & Lokasi
@@ -280,85 +325,103 @@ const ClockIn = () => {
           </div>
         )}
 
-        {/* Preview Section */}
-        {imageSrc && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-lg p-4">
-              <h3 className="text-lg font-semibold text-primary mb-4">
-                Preview Presensi
-              </h3>
+        {/* Preview Modal */}
+        {showPreviewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+            <div className="bg-white rounded-xl shadow-xl w-full h-[90vh] max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
+                <h3 className="text-lg font-semibold text-primary">
+                  Preview Clock In
+                </h3>
+                <button
+                  onClick={handleClosePreviewModal}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Photo Preview */}
-                <div className="space-y-2">
-                  <img
-                    src={imageSrc}
-                    alt="Foto presensi"
-                    className="w-full h-48 object-cover rounded-lg border border-gray-200"
-                  />
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
-                    <CameraIcon className="w-4 h-4" />
-                    Foto Presensi
-                  </p>
-                </div>
+              <div className="p-4 h-[calc(100%-56px)] flex flex-col">
+                {isLoading ? (
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <div className="relative">
+                      <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <ClockIcon className="w-8 h-8 text-primary animate-pulse" />
+                      </div>
+                    </div>
+                    <p className="mt-4 text-gray-600 font-medium">
+                      Memproses presensi...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 overflow-auto">
+                      <div className="flex flex-col h-full">
+                        {/* Foto Preview - Atur tinggi maksimal */}
+                        <div className="flex-1 max-h-[50vh] mb-4">
+                          <div className="relative w-full h-full bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={imageSrc}
+                              alt="Foto presensi"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        </div>
 
-                {/* Location Preview */}
-                <div className="space-y-2">
-                  <div className="h-48 rounded-lg border border-gray-200 overflow-hidden">
-                    <LocationMap
-                      latitude={latitude}
-                      longitude={longitude}
-                      onMapClick={() => {}}
-                    />
-                  </div>
-                  <div className="text-sm text-gray-600 flex items-center gap-2">
-                    <MapPinIcon className="w-4 h-4" />
-                    <span>
-                      {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
-                    </span>
-                  </div>
-                </div>
+                        {/* Map Preview - Atur tinggi maksimal */}
+                        <div className="flex-1 max-h-[30vh] rounded-lg border border-gray-200 overflow-hidden">
+                          <LocationMap
+                            latitude={latitude}
+                            longitude={longitude}
+                            onMapClick={() => {}}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tombol Submit - Tetap di bagian bawah */}
+                    <div className="pt-4">
+                      <form onSubmit={handleSubmit}>
+                        <button
+                          type="submit"
+                          className="w-full bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <span className="loading loading-spinner"></span>
+                              Memproses...
+                            </>
+                          ) : (
+                            <>
+                              <ClockIcon className="w-5 h-5" />
+                              Konfirmasi Clock In
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-
-            {/* Submit Button */}
-            <form onSubmit={handleSubmit}>
-              <button
-                type="submit"
-                className="w-full bg-secondary hover:bg-secondary/90 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="loading loading-spinner"></span>
-                ) : (
-                  <ClockIcon className="w-5 h-5" />
-                )}
-                Konfirmasi Clock In
-              </button>
-            </form>
           </div>
         )}
 
         {/* Message Alert */}
         {message && (
-          <div
-            className={`p-4 rounded-lg flex items-center gap-3 ${
+          <AlertAttendancesModal
+            message={message.replace("error:", "").replace("success:", "")}
+            onClose={() => setMessage("")}
+            type={
               message.startsWith("error:")
-                ? "bg-red-50 text-red-700"
+                ? "error"
                 : message.startsWith("success:")
-                ? "bg-green-50 text-green-700"
-                : "bg-blue-50 text-blue-700"
-            }`}
-          >
-            {message.startsWith("error:") ? (
-              <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
-            ) : message.startsWith("success:") ? (
-              <CheckCircleIcon className="w-5 h-5 flex-shrink-0" />
-            ) : (
-              <ClockIcon className="w-5 h-5 flex-shrink-0" />
-            )}
-            <span>{message.replace("error:", "").replace("success:", "")}</span>
-          </div>
+                ? "success"
+                : "info"
+            }
+          />
         )}
 
         <canvas ref={canvasRef} style={{ display: "none" }} />

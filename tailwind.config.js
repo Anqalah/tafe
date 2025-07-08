@@ -4,17 +4,17 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "./node_modules/tw-elements/js/**/*.js",
-  ], 
+  ],
   theme: {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
       },
       colors: {
-        primary: "#2A4365",
-        secondary: "#D4AF37",
+        primary: "#D4AF37",
+        secondary: "#2A4365",
         accent: "#C53030",
-        neutral_teks: "#F5F7FA",
+        neutral_text: "#F5F7FA",
         neutral_bg: "#F5F7FA ",
       },
       utilities: {

@@ -33,11 +33,22 @@ const StudentLayout = ({ children }) => {
   useEffect(() => {
     const pathMap = {
       "/student/dashboard": "home",
-      "/student/absen": "history",
+      "/student/history/:id": "history", // Tambahkan pattern untuk history dengan parameter
+      "/student/absen": "history", // Jaga kompatibilitas dengan rute lama
       "/attendances/clockin": "scan",
       "/attendances/clockout": "scan",
+      "/student/profile": "profile", // Tambahkan jika ada tab profile
     };
-    setActiveTab(pathMap[location.pathname] || "home");
+    // Cari path yang cocok
+    const matchedPath = Object.keys(pathMap).find((path) => {
+      // Handle path dengan parameter
+      if (path.includes(":")) {
+        const basePath = path.split("/:")[0];
+        return location.pathname.startsWith(basePath);
+      }
+      return location.pathname === path;
+    });
+    setActiveTab(matchedPath ? pathMap[matchedPath] : "home");
   }, [location.pathname]);
 
   const checkAttendance = async (uuid) => {
@@ -172,7 +183,7 @@ const StudentLayout = ({ children }) => {
               desktop
             />
             <NavLink
-              to="/student/absen"
+              to={`/student/history/${user.uuid}`} // Changed to use studentId
               icon={<ClockIcon className="w-5 h-5" />}
               label="History"
               active={activeTab === "history"}
@@ -207,7 +218,7 @@ const StudentLayout = ({ children }) => {
               active={activeTab === "home"}
             />
             <NavLink
-              to="/student/absen"
+              to={`/student/history/${user.uuid}`}
               icon={<ClockIcon className="w-5 h-5" />}
               label="History"
               active={activeTab === "history"}

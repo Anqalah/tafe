@@ -16,6 +16,7 @@
     "axios": "^1.7.7",
     "cloudinary": "^2.5.1",
     "cloudinary-react": "^1.8.1",
+    "date-fns": "^4.1.0",
     "file-saver": "^2.0.5",
     "heroicons": "^2.2.0",
     "leaflet": "^1.9.4",

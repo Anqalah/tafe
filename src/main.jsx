@@ -12,17 +12,18 @@ import DataAdmin from "./Pages/Admin/DataAdmin.jsx";
 import DataStudent from "./Pages/Admin/DataStudent.jsx";
 import EditAdmin from "./Pages/Admin/EditAdmin.jsx";
 import EditDataAdmin from "./Pages/Admin/EditDataAdmin.jsx";
+import EditDataStudent from "./Pages/Admin/EditDataStudent.jsx";
 import FaceRegister from "./Pages/Auth/FaceRegister.jsx";
 import LoginPage from "./Pages/Auth/login.jsx";
 import RegisterPage from "./Pages/Auth/register.jsx";
-import AbsenStudent from "./Pages/Student/AbsenStudent";
 import ClockIn from "./Pages/Student/ClockIn.jsx";
 import ClockInResults from "./Pages/Student/ClockInResult.jsx";
 import ClockOut from "./Pages/Student/ClockOut.jsx";
 import ClockOutResults from "./Pages/Student/ClockOutResult.jsx";
 import DashboardStudent from "./Pages/Student/DashboardStudent.jsx";
+import HistoryAttendances from "./Pages/Student/HistoryAttendance.jsx";
 import ProfileStudent from "./Pages/Student/ProfileStudent";
-import EditDataStudent from "./Pages/Admin/EditDataStudent.jsx";
+import HistoryAttendance from "./Pages/Student/HistoryAttendance.jsx";
 
 axios.defaults.withCredentials = true;
 
@@ -52,8 +53,8 @@ const router = createBrowserRouter([
     element: <DashboardStudent />,
   },
   {
-    path: "/student/absen",
-    element: <AbsenStudent />,
+    path: "/student/history/:id",
+    element: <HistoryAttendance />,
   },
   {
     path: "/student/profile",
