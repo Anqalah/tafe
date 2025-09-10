@@ -30,7 +30,7 @@ const DashboardStudent = () => {
   const getAttendanceByUserId = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/attendances/${authUser?.id}`);
+      const response = await axiosInstance.get(`/attendances/${authUser.id}`);
       setClockInData(response.data || null);
     } catch (error) {
       console.error("Error fetching attendance:", error);
@@ -46,23 +46,23 @@ const DashboardStudent = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const action = await dispatch(getMe());
-        if (getMe.rejected.match(action)) {
-          navigate("/login");
-          return;
-        }
-        await getAttendanceByUserId();
-      } catch (error) {
-        console.error("Error:", error);
+    const fetchUser = async () => {
+      const action = await dispatch(getMe());
+      if (getMe.rejected.match(action)) {
+        navigate("/login");
       }
     };
 
-    fetchData();
-    const intervalId = setInterval(getAttendanceByUserId, 30000);
-    return () => clearInterval(intervalId);
-  }, [dispatch, navigate, authUser?.id]);
+    fetchUser();
+  }, [dispatch, navigate]);
+
+  useEffect(() => {
+    if (authUser?.id) {
+      getAttendanceByUserId();
+      const intervalId = setInterval(getAttendanceByUserId, 30000);
+      return () => clearInterval(intervalId);
+    }
+  }, [authUser?.id]);
 
   const handleDetailClick = (type) => {
     if (!clockInData) {

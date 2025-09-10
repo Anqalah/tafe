@@ -2,7 +2,11 @@ import axios from "axios";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
-import { createBrowserRouter, Link, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+} from "react-router-dom";
 import { store } from "./App/store";
 import "./index.css";
 import AddAdmin from "./Pages/Admin/AddAdmin.jsx";
@@ -21,20 +25,15 @@ import ClockInResults from "./Pages/Student/ClockInResult.jsx";
 import ClockOut from "./Pages/Student/ClockOut.jsx";
 import ClockOutResults from "./Pages/Student/ClockOutResult.jsx";
 import DashboardStudent from "./Pages/Student/DashboardStudent.jsx";
-import HistoryAttendances from "./Pages/Student/HistoryAttendance.jsx";
-import ProfileStudent from "./Pages/Student/ProfileStudent";
 import HistoryAttendance from "./Pages/Student/HistoryAttendance.jsx";
+import ProfileStudent from "./Pages/Student/ProfileStudent";
 
 axios.defaults.withCredentials = true;
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <p className="flex font-bold text-[#8d99ae] bg-[#2b2d42] justify-center text-[86px] min-h-screen items-center">
-        <Link to="/login">SKRIPSI LEE</Link>
-      </p>
-    ),
+    element: <Navigate to="/login" replace />,
   },
   {
     path: "/login",
@@ -57,7 +56,7 @@ const router = createBrowserRouter([
     element: <HistoryAttendance />,
   },
   {
-    path: "/student/profile",
+    path: "/student/profile/:id",
     element: <ProfileStudent />,
   },
   {

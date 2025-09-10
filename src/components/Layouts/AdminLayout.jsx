@@ -1,17 +1,17 @@
+import {
+  AcademicCapIcon,
+  ArrowLeftOnRectangleIcon,
+  ChartBarIcon,
+  ChevronDownIcon,
+  ClipboardDocumentListIcon,
+  PencilSquareIcon,
+  UserCircleIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/solid";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout, reset } from "../../Features/authSlice";
-import {
-  ChartBarIcon,
-  UserGroupIcon,
-  AcademicCapIcon,
-  ClipboardDocumentListIcon,
-  PencilSquareIcon,
-  ArrowLeftOnRectangleIcon,
-  UserCircleIcon,
-  ChevronDownIcon,
-} from "@heroicons/react/24/solid";
 
 const AdminLayout = ({ children }) => {
   const dispatch = useDispatch();

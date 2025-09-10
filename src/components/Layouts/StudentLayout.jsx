@@ -33,15 +33,13 @@ const StudentLayout = ({ children }) => {
   useEffect(() => {
     const pathMap = {
       "/student/dashboard": "home",
-      "/student/history/:id": "history", // Tambahkan pattern untuk history dengan parameter
-      "/student/absen": "history", // Jaga kompatibilitas dengan rute lama
+      "/student/history/:id": "history",
+      "/student/absen": "history",
       "/attendances/clockin": "scan",
       "/attendances/clockout": "scan",
-      "/student/profile": "profile", // Tambahkan jika ada tab profile
+      "/student/profile": "profile",
     };
-    // Cari path yang cocok
     const matchedPath = Object.keys(pathMap).find((path) => {
-      // Handle path dengan parameter
       if (path.includes(":")) {
         const basePath = path.split("/:")[0];
         return location.pathname.startsWith(basePath);
@@ -79,15 +77,17 @@ const StudentLayout = ({ children }) => {
     try {
       const { hasClockedIn, hasClockedOut } = await checkAttendance(user.uuid);
 
+      if (hasClockedIn && hasClockedOut) {
+        setShowCompletionModal(true);
+        return;
+      }
+
       if (!hasClockedIn) {
         navigate(`/attendances/clockin/${user.uuid}`);
       } else if (!hasClockedOut) {
         navigate(`/attendances/clockout/${user.uuid}`);
-      } else {
-        setShowCompletionModal(true);
       }
     } catch (error) {
-      console.error("Scan error:", error);
       alert("Gagal memeriksa status absensi. Coba lagi nanti.");
     }
   };
@@ -119,137 +119,142 @@ const StudentLayout = ({ children }) => {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col w-full h-screen mx-auto bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden font-inter">
-      {/* Header */}
-      <header className="sticky z-50 bg-gradient-to-r rounded-b-sm from-primary to-blue-600 shadow-lg lg:static lg:bg-white lg:shadow-md">
-        <div className="flex justify-between items-center p-5 lg:max-w-6xl lg:mx-auto lg:px-4">
-          <h1 className="text-secondary font-bold text-xl lg:text-2xl lg:text-secondary">
-            Student Portal
-          </h1>
-          <div className="relative">
-            <img
-              src={user.foto_profile ? user.foto_profile : userProfile}
-              alt="profile"
-              className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform lg:w-14 lg:h-14 lg:border-gray-200"
-              onClick={() => setShowUserModal(!showUserModal)}
-            />
-            {showUserModal && (
-              <div className="absolute right-0 top-14 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 animate-slideDown lg:top-16">
-                <div className="p-3 space-y-2">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="font-medium text-gray-800">{user.name}</p>
-                    <p className="text-sm text-gray-500">{user.kelas}</p>
+    <div className="relative flex flex-col w-full h-screen mx-auto overflow-hidden font-inter">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 "
+        style={{
+          backgroundImage: "url('/logo/2.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      ></div>
+
+      {/* Overlay gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-gray-100/80"></div>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-full">
+        {/* Header */}
+        <header className="sticky z-50 bg-gradient-to-r rounded-b-lg from-primary/90 to-blue-600/90 shadow-lg backdrop-blur-sm lg:static lg:bg-white/90 lg:shadow-md">
+          <div className="flex justify-between items-center p-5 lg:max-w-6xl lg:mx-auto lg:px-4">
+            <h1 className="text-white font-bold text-xl lg:text-2xl lg:text-secondary">
+              Student Portal
+            </h1>
+            <div className="relative">
+              <img
+                src={user.foto_profile ? user.foto_profile : userProfile}
+                alt="profile"
+                className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform lg:w-14 lg:h-14 lg:border-gray-200"
+                onClick={() => setShowUserModal(!showUserModal)}
+              />
+              {showUserModal && (
+                <div className="absolute right-0 top-14 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 animate-slideDown lg:top-16">
+                  <div className="p-3 space-y-2">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="font-medium text-gray-800">{user.name}</p>
+                      <p className="text-sm text-gray-500">{user.kelas}</p>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/student/profile/${user?.uuid}`)}
+                      className="w-full px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2.5 text-left text-red-500 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      Logout
+                    </button>
                   </div>
-                  <button
-                    onClick={() => navigate("/student/profile")}
-                    className="w-full px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    Edit Profile
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full px-4 py-2.5 text-left text-red-500 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    Logout
-                  </button>
                 </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 lg:p-6 h-full overflow-y-auto scroll-smooth">
+          <div className="lg:max-w-5xl lg:mx-auto lg:px-4">
+            {attendanceStatus.error && (
+              <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+                {attendanceStatus.error}
               </div>
             )}
+            {children}
           </div>
-        </div>
-      </header>
+        </main>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-6 h-full overflow-y-auto scroll-smooth">
-        <div className="lg:max-w-5xl lg:mx-auto lg:px-4">
-          {attendanceStatus.error && (
-            <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
-              {attendanceStatus.error}
-            </div>
-          )}
-          {children}
-        </div>
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="w-full bg-white rounded-t-2xl shadow-2xl border-t border-gray-300 lg:rounded-none lg:border-t-0">
-        <div className="flex justify-around items-center p-2 lg:max-w-6xl lg:mx-auto lg:py-4">
-          <div className="hidden lg:flex lg:gap-6 lg:items-center">
-            <NavLink
-              to="/student/dashboard"
-              icon={<HomeIcon className="w-5 h-5" />}
-              label="Home"
-              active={activeTab === "home"}
-              desktop
-            />
-            <NavLink
-              to={`/student/history/${user.uuid}`} // Changed to use studentId
-              icon={<ClockIcon className="w-5 h-5" />}
-              label="History"
-              active={activeTab === "history"}
-              desktop
-            />
-          </div>
-
-          {/* Scan Button */}
-          <div className="relative -top-1 lg:-top-4">
-            <button
-              onClick={handleScan}
-              disabled={attendanceStatus.loading}
-              className={`p-5 lg:p-6 rounded-full shadow-lg transition-all ${
-                attendanceStatus.loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-br from-primary to-blue-600 hover:shadow-xl hover:scale-105"
-              } ${activeTab === "scan" ? "ring-4 ring-blue-200" : ""}`}
-            >
-              <CameraIcon
-                className={`w-4 h-4 lg:w-6 lg:h-6 ${
-                  attendanceStatus.loading ? "text-gray-200" : "text-white"
-                }`}
+        {/* Bottom Navigation */}
+        <nav className="w-full bg-white rounded-t-2xl shadow-2xl border-t border-gray-300 lg:rounded-none lg:border-t-0">
+          <div className="flex justify-around items-center p-2 lg:max-w-6xl lg:mx-auto lg:py-4">
+            <div className="hidden lg:flex lg:gap-6 lg:items-center">
+              <NavLink
+                to="/student/dashboard"
+                icon={<HomeIcon className="w-5 h-5" />}
+                label="Home"
+                active={activeTab === "home"}
+                desktop
               />
-            </button>
-          </div>
+              <NavLink
+                to={`/student/history/${user.uuid}`}
+                icon={<ClockIcon className="w-5 h-5" />}
+                label="History"
+                active={activeTab === "history"}
+                desktop
+              />
+            </div>
 
-          <div className="lg:hidden flex gap-8">
-            <NavLink
-              to="/student/dashboard"
-              icon={<HomeIcon className="w-5 h-5" />}
-              label="Home"
-              active={activeTab === "home"}
-            />
-            <NavLink
-              to={`/student/history/${user.uuid}`}
-              icon={<ClockIcon className="w-5 h-5" />}
-              label="History"
-              active={activeTab === "history"}
-            />
-          </div>
-        </div>
-      </nav>
+            {/* Scan Button */}
+            <div className="relative -top-1 lg:-top-4">
+              <button
+                onClick={handleScan}
+                disabled={attendanceStatus.loading}
+                className={`p-5 lg:p-6 rounded-full shadow-lg transition-all ${
+                  attendanceStatus.loading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-br from-primary to-blue-600 hover:shadow-xl hover:scale-105"
+                } ${activeTab === "scan" ? "ring-4 ring-blue-200" : ""}`}
+              >
+                <CameraIcon
+                  className={`w-4 h-4 lg:w-6 lg:h-6 ${
+                    attendanceStatus.loading ? "text-gray-200" : "text-white"
+                  }`}
+                />
+              </button>
+            </div>
 
-      {/* Completion Modal */}
-      <Modal
-        isOpen={showCompletionModal}
-        onClose={() => setShowCompletionModal(false)}
-      >
-        <div className="text-center p-6">
-          <h3 className="text-xl font-semibold mb-4">Absensi Selesai!</h3>
-          <p className="text-gray-600 mb-4">
-            Anda telah melakukan Clock-In dan Clock-Out hari ini.
-          </p>
-          <button
-            onClick={() => setShowCompletionModal(false)}
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
-          >
-            Tutup
-          </button>
-        </div>
-      </Modal>
+            <div className="lg:hidden flex gap-8">
+              <NavLink
+                to="/student/dashboard"
+                icon={<HomeIcon className="w-5 h-5" />}
+                label="Home"
+                active={activeTab === "home"}
+              />
+              <NavLink
+                to={`/student/history/${user.uuid}`}
+                icon={<ClockIcon className="w-5 h-5" />}
+                label="History"
+                active={activeTab === "history"}
+              />
+            </div>
+          </div>
+        </nav>
+
+        {/* Completion Modal */}
+        <Modal
+          show={showCompletionModal}
+          type="success"
+          message="Anda telah melakukan Clock-In dan Clock-Out hari ini."
+          onClose={() => setShowCompletionModal(false)}
+        />
+      </div>
     </div>
   );
 };
 
-// NavLink Component
 const NavLink = ({ to, icon, label, active, desktop = false }) => (
   <Link
     to={to}

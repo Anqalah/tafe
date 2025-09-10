@@ -69,24 +69,15 @@ const FormRegister = () => {
   const onSubmit = async (data) => {
     try {
       setErrorMessage("");
-
       const payload = {
         name: data.name,
         email: data.email,
         password: data.password,
         confPassword: data.confirmPassword,
-        alamat: data.alamat,
-        jk: data.jk,
-        umur: data.umur,
         hp: data.hp,
-        bidang: data.bidang,
-        kelas: data.kelas,
       };
-
       showLoadingModal();
-
       const response = await axiosInstance.post("/register", payload);
-
       showSuccessModal(
         "Pendaftaran awal berhasil! Lanjutkan verifikasi wajah.",
         () => {
@@ -109,14 +100,13 @@ const FormRegister = () => {
 
   return (
     <AuthLayout type="register" title="Daftar Akun Siswa">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {errorMessage && (
           <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
             {errorMessage}
           </div>
         )}
-
-        <div className="grid gap-4">
+        <div className="grid gap-2">
           <InputField
             label="Nama Lengkap"
             name="name"
@@ -132,17 +122,7 @@ const FormRegister = () => {
             type="email"
             required
           />
-        </div>
 
-        <InputField
-          label="Alamat Lengkap"
-          name="alamat"
-          register={register}
-          errors={errors}
-          required
-        />
-
-        <div className="grid gap-4">
           <InputField
             label="Nomor HP/Whatsapp"
             name="hp"
@@ -150,50 +130,7 @@ const FormRegister = () => {
             errors={errors}
             type="tel"
           />
-          <InputField
-            label="Umur"
-            name="umur"
-            register={register}
-            errors={errors}
-            type="number"
-          />
-          <SelectField
-            label="Jenis Kelamin"
-            name="jk"
-            options={["Laki-laki", "Perempuan"]}
-            register={register}
-            errors={errors}
-            required
-          />
-        </div>
 
-        <div className="grid gap-4">
-          <SelectField
-            label="Bidang Keahlian"
-            name="bidang"
-            options={[
-              "Konstruksi",
-              "Perikanan",
-              "Pertanian",
-              "Peternakan",
-              "Pengolahan Makanan",
-              "Perawat Lansia",
-            ]}
-            register={register}
-            errors={errors}
-            required
-          />
-          <SelectField
-            label="Kelas"
-            name="kelas"
-            options={["A", "B"]}
-            register={register}
-            errors={errors}
-            required
-          />
-        </div>
-
-        <div className="grid gap-4">
           <PasswordField
             label="Password"
             name="password"
@@ -269,42 +206,6 @@ const InputField = ({
         errors[name] ? "border-red-500" : "border-gray-300"
       } rounded-lg focus:ring-blue-500 focus:border-blue-500`}
     />
-    {errors[name] && (
-      <p className="mt-1 text-sm text-red-600">{errors[name].message}</p>
-    )}
-  </div>
-);
-
-// SelectField Component
-const SelectField = ({
-  label,
-  name,
-  options,
-  register,
-  errors,
-  required = false,
-}) => (
-  <div>
-    <label
-      htmlFor={name}
-      className="block mb-2 text-sm font-medium text-gray-700"
-    >
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <select
-      id={name}
-      {...register(name, { required: required && `${label} wajib diisi` })}
-      className={`w-full px-4 py-2 border ${
-        errors[name] ? "border-red-500" : "border-gray-300"
-      } rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white`}
-    >
-      <option value="">Pilih {label}</option>
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
     {errors[name] && (
       <p className="mt-1 text-sm text-red-600">{errors[name].message}</p>
     )}

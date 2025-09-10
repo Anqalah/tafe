@@ -34,7 +34,9 @@ const LocationMap = (props) => {
       }).addTo(mapRef.current);
 
       // Handle map click
-      mapRef.current.on("click", onMapClick);
+      if (typeof onMapClick === "function") {
+        mapRef.current.on("click", onMapClick);
+      }
     }
 
     // Update map view if latitude and longitude change
@@ -56,16 +58,15 @@ const LocationMap = (props) => {
       }
     }
 
-    // Cleanup function to remove the map instance on unmount
     return () => {
       if (mapRef.current) {
-        mapRef.current.off(); // Remove all event listeners
-        mapRef.current.remove(); // Remove the map
+        if (typeof onMapClick === "function") {
+          mapRef.current.off("click", onMapClick);
+        }
+        mapRef.current.remove();
         mapRef.current = null;
       }
-      if (markerRef.current) {
-        markerRef.current = null;
-      }
+      markerRef.current = null;
     };
   }, [latitude, longitude, onMapClick]);
 
