@@ -11,7 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
-import Logo from "../../../public/logo/logo.png";
+import Logo from "../../assets/logo/logo.png";
 
 const ClockOutResults = () => {
   const { id } = useParams();

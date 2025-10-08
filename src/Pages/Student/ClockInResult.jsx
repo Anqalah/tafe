@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Logo from "../../../public/logo/logo.png";
+import Logo from "../../assets/logo/logo.png";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
 

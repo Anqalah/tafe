@@ -1,3 +1,4 @@
+import React from "react";
 import { CameraIcon, ClockIcon, HomeIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,6 +7,7 @@ import { getMe, logout, reset } from "../../Features/authSlice";
 import { Modal } from "../Elements/Modals/Modal.jsx";
 import axiosInstance from "../../config/axios.js";
 import userProfile from "../../../public/images/shoes1.jpg";
+import Sidebar from "../Elements/Navigasi/sidebar.jsx";
 
 const StudentLayout = ({ children }) => {
   const dispatch = useDispatch();
@@ -14,8 +16,17 @@ const StudentLayout = ({ children }) => {
   const { user } = useSelector((state) => state.auth);
 
   const [showUserModal, setShowUserModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("home");
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [activeTab, setActiveTab] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    // Ambil dari localStorage (default: false)
+    const saved = localStorage.getItem("sidebar-collapsed");
+    return saved === "true";
+  });
+  useEffect(() => {
+    // Simpan setiap kali berubah
+    localStorage.setItem("sidebar-collapsed", isSidebarOpen);
+  }, [isSidebarOpen]);
+
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [attendanceStatus, setAttendanceStatus] = useState({
     loading: false,
@@ -25,27 +36,17 @@ const StudentLayout = ({ children }) => {
   });
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
     const pathMap = {
       "/student/dashboard": "home",
-      "/student/history/:id": "history",
+      "/student/history": "history",
       "/student/absen": "history",
       "/attendances/clockin": "scan",
       "/attendances/clockout": "scan",
       "/student/profile": "profile",
     };
-    const matchedPath = Object.keys(pathMap).find((path) => {
-      if (path.includes(":")) {
-        const basePath = path.split("/:")[0];
-        return location.pathname.startsWith(basePath);
-      }
-      return location.pathname === path;
-    });
+    const matchedPath = Object.keys(pathMap).find((path) =>
+      location.pathname.startsWith(path)
+    );
     setActiveTab(matchedPath ? pathMap[matchedPath] : "home");
   }, [location.pathname]);
 
@@ -92,6 +93,31 @@ const StudentLayout = ({ children }) => {
     }
   };
 
+  const handleNavigation = (key) => {
+    switch (key) {
+      case "home":
+        navigate("/student/dashboard");
+        break;
+      case "history":
+        navigate(`/student/history/${user.uuid}`);
+        break;
+      case "scan":
+        handleScan();
+        break;
+      case "profile":
+        navigate(`/student/profile/${user.uuid}`);
+        break;
+      case "logout":
+        // Handle logout logic
+        dispatch(logout());
+        dispatch(reset());
+        navigate("/login");
+        break;
+      default:
+        break;
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       dispatch(getMe())
@@ -100,182 +126,101 @@ const StudentLayout = ({ children }) => {
     }
   }, [dispatch, navigate, user]);
 
-  useEffect(() => {
-    if (user?.uuid && location.pathname.includes("attendances")) {
-      checkAttendance(user.uuid);
-    }
-  }, [user, location.pathname]);
-
-  const handleLogout = async () => {
-    try {
-      await dispatch(logout()).unwrap();
-      dispatch(reset());
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
   if (!user) return null;
 
   return (
-    <div className="relative flex flex-col w-full h-screen mx-auto overflow-hidden font-inter">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 "
-        style={{
-          backgroundImage: "url('/logo/2.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      ></div>
+    <div className="relative flex w-full h-screen mx-auto overflow-hidden font-inter">
+      {/* Sidebar Desktop */}
+      <div className="hidden lg:flex">
+        <Sidebar
+          activeKey={activeTab}
+          avatar={user.foto_profile || userProfile}
+          logo="S"
+          onNavigate={handleNavigation}
+          user={user} // Pastikan prop user dikirim
+          isCollapsed={isSidebarOpen}
+          setIsCollapsed={setIsSidebarOpen}
+        />
+      </div>
 
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-gray-100/80"></div>
-
-      {/* Content */}
-      <div className="relative z-10 flex flex-col h-full">
+      {/* Main Area */}
+      <div className="flex-1 flex flex-col h-full relative z-10">
         {/* Header */}
-        <header className="sticky z-50 bg-gradient-to-r rounded-b-lg from-primary/90 to-blue-600/90 shadow-lg backdrop-blur-sm lg:static lg:bg-white/90 lg:shadow-md">
-          <div className="flex justify-between items-center p-5 lg:max-w-6xl lg:mx-auto lg:px-4">
-            <h1 className="text-white font-bold text-xl lg:text-2xl lg:text-secondary">
-              Student Portal
-            </h1>
+        <header className="sticky top-0 z-50 bg-gradient-to-r from-primary/90 to-blue-600/90 shadow-lg backdrop-blur-sm lg:hidden">
+          <div className="flex justify-between items-center p-5">
+            <h1 className="text-white font-bold text-xl">Student Portal</h1>
             <div className="relative">
               <img
                 src={user.foto_profile ? user.foto_profile : userProfile}
                 alt="profile"
-                className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform lg:w-14 lg:h-14 lg:border-gray-200"
+                className="w-12 h-12 rounded-full cursor-pointer border-2 border-white/30 shadow-lg hover:scale-105 transition-transform"
                 onClick={() => setShowUserModal(!showUserModal)}
               />
-              {showUserModal && (
-                <div className="absolute right-0 top-14 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 animate-slideDown lg:top-16">
-                  <div className="p-3 space-y-2">
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="font-medium text-gray-800">{user.name}</p>
-                      <p className="text-sm text-gray-500">{user.kelas}</p>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/student/profile/${user?.uuid}`)}
-                      className="w-full px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      Edit Profile
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full px-4 py-2.5 text-left text-red-500 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6 h-full overflow-y-auto scroll-smooth">
-          <div className="lg:max-w-5xl lg:mx-auto lg:px-4">
-            {attendanceStatus.error && (
-              <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
-                {attendanceStatus.error}
-              </div>
-            )}
-            {children}
-          </div>
+        <main className="flex-1 p-4 lg:p-8 h-full overflow-y-auto scroll-smooth">
+          {attendanceStatus.error && (
+            <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+              {attendanceStatus.error}
+            </div>
+          )}
+          {children}
         </main>
 
-        {/* Bottom Navigation */}
-        <nav className="w-full bg-white rounded-t-2xl shadow-2xl border-t border-gray-300 lg:rounded-none lg:border-t-0">
-          <div className="flex justify-around items-center p-2 lg:max-w-6xl lg:mx-auto lg:py-4">
-            <div className="hidden lg:flex lg:gap-6 lg:items-center">
-              <NavLink
-                to="/student/dashboard"
-                icon={<HomeIcon className="w-5 h-5" />}
-                label="Home"
-                active={activeTab === "home"}
-                desktop
-              />
-              <NavLink
-                to={`/student/history/${user.uuid}`}
-                icon={<ClockIcon className="w-5 h-5" />}
-                label="History"
-                active={activeTab === "history"}
-                desktop
-              />
-            </div>
-
-            {/* Scan Button */}
-            <div className="relative -top-1 lg:-top-4">
-              <button
-                onClick={handleScan}
-                disabled={attendanceStatus.loading}
-                className={`p-5 lg:p-6 rounded-full shadow-lg transition-all ${
-                  attendanceStatus.loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-br from-primary to-blue-600 hover:shadow-xl hover:scale-105"
-                } ${activeTab === "scan" ? "ring-4 ring-blue-200" : ""}`}
-              >
-                <CameraIcon
-                  className={`w-4 h-4 lg:w-6 lg:h-6 ${
-                    attendanceStatus.loading ? "text-gray-200" : "text-white"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="lg:hidden flex gap-8">
-              <NavLink
-                to="/student/dashboard"
-                icon={<HomeIcon className="w-5 h-5" />}
-                label="Home"
-                active={activeTab === "home"}
-              />
-              <NavLink
-                to={`/student/history/${user.uuid}`}
-                icon={<ClockIcon className="w-5 h-5" />}
-                label="History"
-                active={activeTab === "history"}
-              />
-            </div>
+        {/* Bottom Navigation (Mobile) */}
+        <nav className="w-full bg-white rounded-t-2xl shadow-2xl border-t border-gray-300 lg:hidden">
+          <div className="flex justify-around items-center p-2">
+            <NavLink
+              to="/student/dashboard"
+              icon={<HomeIcon className="w-5 h-5" />}
+              label="Home"
+              active={activeTab === "home"}
+            />
+            <button
+              onClick={handleScan}
+              disabled={attendanceStatus.loading}
+              className={`p-5 rounded-full shadow-lg transition-all ${
+                attendanceStatus.loading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-gradient-to-br from-primary to-blue-600 hover:shadow-xl hover:scale-105"
+              } ${activeTab === "scan" ? "ring-4 ring-blue-200" : ""}`}
+            >
+              <CameraIcon className="w-4 h-4 text-white" />
+            </button>
+            <NavLink
+              to={`/student/history/${user.uuid}`}
+              icon={<ClockIcon className="w-5 h-5" />}
+              label="History"
+              active={activeTab === "history"}
+            />
           </div>
         </nav>
-
-        {/* Completion Modal */}
-        <Modal
-          show={showCompletionModal}
-          type="success"
-          message="Anda telah melakukan Clock-In dan Clock-Out hari ini."
-          onClose={() => setShowCompletionModal(false)}
-        />
       </div>
+
+      <Modal
+        show={showCompletionModal}
+        type="success"
+        message="Anda telah melakukan Clock-In dan Clock-Out hari ini."
+        onClose={() => setShowCompletionModal(false)}
+      />
     </div>
   );
 };
 
-const NavLink = ({ to, icon, label, active, desktop = false }) => (
+const NavLink = ({ to, icon, label, active }) => (
   <Link
     to={to}
-    className={`${
-      desktop
-        ? `flex items-center gap-2 px-4 py-3 rounded-lg transition-colors ${
-            active
-              ? "bg-blue-100 text-primary"
-              : "text-gray-600 hover:bg-gray-50"
-          }`
-        : `flex flex-col items-center p-2 rounded-xl ${
-            active
-              ? "bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg"
-              : "text-gray-500 hover:bg-gray-50"
-          }`
+    className={`flex flex-col items-center p-2 rounded-xl ${
+      active
+        ? "bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg"
+        : "text-gray-500 hover:bg-gray-50"
     }`}
   >
-    <span className={`${desktop ? "w-5 h-5" : "w-6 h-6"}`}>{icon}</span>
-    <span className={`text-xs ${desktop ? "text-sm font-medium" : "mt-1"}`}>
-      {label}
-    </span>
+    <span className="w-6 h-6">{icon}</span>
+    <span className="text-xs mt-1">{label}</span>
   </Link>
 );
 
