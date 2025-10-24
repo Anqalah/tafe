@@ -38,6 +38,16 @@ const Sidebar = ({
     { key: "logout", icon: <PowerIcon className="h-6 w-6" />, label: "Logout" },
   ];
 
+  const [showMenu, setShowMenu] = React.useState(false);
+  // Tutup menu jika klik di luar area
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".profile-menu-area")) setShowMenu(false);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
   const backgroundImage = bg;
 
   return (
@@ -111,17 +121,32 @@ const Sidebar = ({
       </div>
 
       {/* Profil */}
-      <div className="p-4 border-t border-white/10">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm">
-          <div className="relative">
+      <div
+        className={`p-4 border-t border-white/10 flex flex-col items-center ${
+          isCollapsed ? "justify-center" : ""
+        } relative profile-menu-area`}
+      >
+        {/* Avatar */}
+        <div
+          className={`relative flex items-center ${
+            isCollapsed ? "justify-center" : "gap-3"
+          } w-full transition-all duration-300`}
+        >
+          <button
+            onClick={() => setShowMenu((prev) => !prev)}
+            className="relative focus:outline-none group"
+          >
             <img
               src={avatar}
               alt="User Avatar"
-              className="h-10 w-10 rounded-full border-2 border-[#D4AF37] object-cover shadow-md"
+              className={`rounded-full border-2 border-[#D4AF37] object-cover shadow-lg transition-all duration-300 ${
+                isCollapsed ? "h-12 w-12" : "h-10 w-10"
+              } group-hover:scale-105`}
             />
-            <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-[#2A4365]"></div>
-          </div>
+            <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-[#2A4365]" />
+          </button>
 
+          {/* Info user saat sidebar terbuka */}
           {!isCollapsed && (
             <div className="flex-1 min-w-0 transition-opacity duration-500 ease-in-out">
               <p className="text-sm font-semibold text-[#F5F7FA] truncate">
@@ -134,22 +159,46 @@ const Sidebar = ({
           )}
         </div>
 
-        {!isCollapsed && (
-          <div className="mt-3 space-y-1 transition-all duration-500 ease-in-out">
-            {profileItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => onNavigate(item.key)}
-                className={`flex items-center gap-3 w-full p-2 rounded-lg text-left transition-colors ${
-                  activeKey === item.key
-                    ? "text-[#D4AF37] bg-white/10"
-                    : "text-[#F5F7FA]/80 hover:text-[#F5F7FA] hover:bg-white/5"
-                }`}
-              >
-                {item.icon}
-                <span className="text-sm">{item.label}</span>
-              </button>
-            ))}
+        {/* Popup menu */}
+        {showMenu && (
+          <div
+            className={`absolute z-50 ${
+              isCollapsed
+                ? "bottom-16 left-1/2 -translate-x-1/2"
+                : "bottom-20 left-1/2 -translate-x-1/2"
+            } w-48 bg-[#2A4365]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl 
+      animate-fadeInScale overflow-hidden`}
+          >
+            <div className="p-3 border-b border-white/10">
+              <p className="text-sm font-semibold text-white text-center">
+                {user?.name || "User"}
+              </p>
+              <p className="text-xs text-gray-300 text-center truncate">
+                {user?.email || "student@email.com"}
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                onNavigate("profile");
+                setShowMenu(false);
+              }}
+              className="flex items-center gap-3 w-full p-3 text-[#F5F7FA]/90 hover:bg-white/10 hover:text-[#D4AF37] transition-colors"
+            >
+              <UserCircleIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Profile</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onNavigate("logout");
+                setShowMenu(false);
+              }}
+              className="flex items-center gap-3 w-full p-3 text-[#F5F7FA]/90 hover:bg-white/10 hover:text-[#D4AF37] transition-colors border-t border-white/10"
+            >
+              <PowerIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
           </div>
         )}
       </div>
