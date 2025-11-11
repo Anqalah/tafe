@@ -6,7 +6,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const AcademicCalendar = () => {
-  const events = [  
+  const events = [
     {
       id: 1,
       title: "Ujian Mid Semester",

@@ -8,6 +8,7 @@ import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
 import { getMe } from "../../Features/authSlice";
 import AttendanceCardModal from "../../components/Elements/Modals/AttendanceCardModal";
+import AcademicCalendar from "../../components/Elements/Modals/AcademicCalender";
 
 const DashboardStudent = () => {
   const dispatch = useDispatch();
@@ -163,27 +164,7 @@ const DashboardStudent = () => {
           />
         </div>
 
-        {/* --- Calendar Section --- */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-[#2A4365]/10">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-lg font-semibold text-[#4A5568]">
-              Kalender Akademik
-            </h2>
-            <CalendarIcon className="w-7 h-7 text-[#2A4365]" />
-          </div>
-          <div className="space-y-4">
-            <CalendarEvent
-              title="Ujian Mid Semester"
-              date="15 Oktober 2024"
-              color="bg-[#2A4365]"
-            />
-            <CalendarEvent
-              title="Batas Pengumpulan Tugas"
-              date="20 Oktober 2024"
-              color="bg-[#D4AF37]"
-            />
-          </div>
-        </div>
+        <AcademicCalendar />
       </div>
 
       {clockInData && (
@@ -204,15 +185,5 @@ const DashboardStudent = () => {
     </StudentLayout>
   );
 };
-
-const CalendarEvent = ({ title, date, color }) => (
-  <div className="flex items-center gap-4 p-3 hover:bg-[#F5F7FA] rounded-xl transition-colors">
-    <div className={`${color} w-3 h-3 rounded-full flex-shrink-0`} />
-    <div>
-      <p className="text-sm font-medium text-[#4A5568]">{title}</p>
-      <p className="text-xs text-[#4A5568]/60 mt-1">{date}</p>
-    </div>
-  </div>
-);
 
 export default DashboardStudent;
