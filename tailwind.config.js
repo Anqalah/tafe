@@ -14,8 +14,9 @@ export default {
         primary: "#D4AF37",
         secondary: "#2A4365",
         accent: "#C53030",
-        neutral_text: "#F5F7FA",
-        neutral_bg: "#F5F7FA ",
+        neutral: "#F5F7FA",
+        background: "#F6F8FA",
+        card: "card",
       },
       utilities: {
         ".hide-scrollbar": {

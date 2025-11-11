@@ -1,10 +1,11 @@
+// FormRegister.jsx (Updated Button Colors)
 import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../config/axios";
 import Button from "../Elements/Button";
 import AuthLayout from "../Layouts/AuthLayouts";
-import { Modal } from "../Elements/Modals/Modal.jsx";
+import { useModal } from "../Elements/Modals/UseAuthModal";
 
 const FormRegister = () => {
   const {
@@ -14,57 +15,16 @@ const FormRegister = () => {
     formState: { errors, isSubmitting },
   } = useForm();
 
-  const [modal, setModal] = useState({
-    show: false,
-    type: "",
-    message: "",
-    onClose: null,
-  });
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
+  const { Modal, showModal, hideModal } = useModal();
+
   const toggleVisibility = useCallback((setter) => {
     setter((prev) => !prev);
   }, []);
-
-  const closeModal = useCallback(() => {
-    setModal((prev) => ({ ...prev, show: false }));
-  }, []);
-
-  const showLoadingModal = useCallback((message) => {
-    setModal({
-      show: true,
-      type: "loading",
-      message: message || "Memproses pendaftaran...",
-      onClose: null, // Loading modal tidak bisa ditutup
-    });
-  }, []);
-
-  const showErrorModal = useCallback(
-    (message, onClose = null) => {
-      setModal({
-        show: true,
-        type: "error",
-        message,
-        onClose: onClose || closeModal,
-      });
-    },
-    [closeModal]
-  );
-
-  const showSuccessModal = useCallback(
-    (message, onClose = null) => {
-      setModal({
-        show: true,
-        type: "success",
-        message,
-        onClose: onClose || closeModal,
-      });
-    },
-    [closeModal]
-  );
 
   const onSubmit = async (data) => {
     try {
@@ -76,12 +36,24 @@ const FormRegister = () => {
         confPassword: data.confirmPassword,
         hp: data.hp,
       };
-      showLoadingModal();
+
+      // Tampilkan modal loading dengan warna secondary
+      showModal({
+        type: "loading",
+        title: "Memproses Pendaftaran",
+        message: "Harap tunggu sebentar...",
+      });
+
       const response = await axiosInstance.post("/register", payload);
-      showSuccessModal(
-        "Pendaftaran awal berhasil! Lanjutkan verifikasi wajah.",
-        () => {
-          closeModal();
+
+      // Tampilkan modal sukses dengan warna primary (emas)
+      showModal({
+        type: "success",
+        title: "Pendaftaran Berhasil!",
+        message: "Pendaftaran awal berhasil! Lanjutkan verifikasi wajah.",
+        confirmText: "Lanjutkan Verifikasi",
+        onConfirm: () => {
+          hideModal();
           if (response.data.verification_token) {
             navigate(
               `/register/complete?token=${response.data.verification_token}`
@@ -89,12 +61,20 @@ const FormRegister = () => {
           } else {
             throw new Error("No verification token received");
           }
-        }
-      );
+        },
+      });
     } catch (error) {
       const errorMsg =
         error.response?.data?.error || "Gagal melakukan pendaftaran";
-      showErrorModal(errorMsg);
+
+      // Tampilkan modal error
+      showModal({
+        type: "error",
+        title: "Pendaftaran Gagal",
+        message: errorMsg,
+        confirmText: "Coba Lagi",
+        onConfirm: hideModal,
+      });
     }
   };
 
@@ -106,6 +86,7 @@ const FormRegister = () => {
             {errorMessage}
           </div>
         )}
+
         <div className="grid gap-2">
           <InputField
             label="Nama Lengkap"
@@ -159,26 +140,49 @@ const FormRegister = () => {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-2 px-6 rounded-lg font-semibold text-lg ${
-              isSubmitting ? "bg-accent" : "bg-primary hover:bg-secondary"
-            } text-white transition-colors`}
+            className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
+              isSubmitting
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#D4AF37] hover:bg-[#B8941F] shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            }`}
           >
-            {isSubmitting ? "Memproses..." : "Daftar Sekarang"}
+            {isSubmitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Memproses...
+              </div>
+            ) : (
+              "Daftar Sekarang"
+            )}
           </Button>
         </div>
       </form>
 
-      <Modal
-        show={modal.show}
-        type={modal.type}
-        message={modal.message}
-        onClose={modal.onClose}
-      />
+      {/* Modal Component dengan warna baru */}
+      <Modal />
     </AuthLayout>
   );
 };
 
-// InputField Component
+// InputField Component dengan focus color primary
 const InputField = ({
   label,
   name,
@@ -202,9 +206,11 @@ const InputField = ({
         required: required && `${label} wajib diisi`,
         ...rest,
       })}
-      className={`w-full px-4 py-2 border ${
-        errors[name] ? "border-red-500" : "border-gray-300"
-      } rounded-lg focus:ring-blue-500 focus:border-blue-500`}
+      className={`w-full px-4 py-3 border rounded-lg transition-colors ${
+        errors[name]
+          ? "border-red-500 focus:ring-red-200 focus:border-red-500"
+          : "border-gray-300 focus:ring-[#D4AF37] focus:ring-2 focus:border-[#D4AF37]"
+      }`}
     />
     {errors[name] && (
       <p className="mt-1 text-sm text-red-600">{errors[name].message}</p>
@@ -212,7 +218,7 @@ const InputField = ({
   </div>
 );
 
-// PasswordField Component
+// PasswordField Component dengan focus color primary
 const PasswordField = ({
   label,
   name,
@@ -245,14 +251,16 @@ const PasswordField = ({
           validate: validate,
           ...rest,
         })}
-        className={`w-full px-4 py-2 border ${
-          errors[name] ? "border-red-500" : "border-gray-300"
-        } rounded-lg focus:ring-blue-500 focus:border-blue-500 pr-10`}
+        className={`w-full px-4 py-3 border rounded-lg transition-colors pr-12 ${
+          errors[name]
+            ? "border-red-500 focus:ring-red-200 focus:border-red-500"
+            : "border-gray-300 focus:ring-[#D4AF37] focus:ring-2 focus:border-[#D4AF37]"
+        }`}
       />
       <button
         type="button"
         onClick={toggle}
-        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-600 hover:text-gray-800"
+        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-600 hover:text-[#D4AF37] transition-colors"
         aria-label={show ? "Sembunyikan password" : "Tampilkan password"}
       >
         {show ? (

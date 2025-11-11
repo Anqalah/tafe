@@ -27,6 +27,7 @@ import ClockOutResults from "./Pages/Student/ClockOutResult.jsx";
 import DashboardStudent from "./Pages/Student/DashboardStudent.jsx";
 import HistoryAttendance from "./Pages/Student/HistoryAttendance.jsx";
 import ProfileStudent from "./Pages/Student/ProfileStudent";
+import UpdateFace from "./Pages/Student/UpdateFace.jsx";
 
 axios.defaults.withCredentials = true;
 
@@ -58,6 +59,10 @@ const router = createBrowserRouter([
   {
     path: "/student/profile/:id",
     element: <ProfileStudent />,
+  },
+  {
+    path: "/student/updateface/:id",
+    element: <UpdateFace />,
   },
   {
     path: "/attendances/clockin/:id",

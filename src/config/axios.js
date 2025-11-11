@@ -3,14 +3,12 @@ import axios from "axios";
 const axiosInstance = axios.create({
   // baseURL: "https://tabe.onrender.com",
   baseURL: "http://localhost:8000",
-  // baseURL: "http://localhost:5432",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Tambahkan token JWT ke setiap request
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;

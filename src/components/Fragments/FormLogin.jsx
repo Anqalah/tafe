@@ -1,18 +1,15 @@
+// FormLogin.jsx (Fixed Version)
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { login, reset } from "../../Features/authSlice";
 import AuthLayout from "../Layouts/AuthLayouts";
+import { useModal } from "../Elements/Modals/UseAuthModal";
 
 const FormLogin = () => {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modal, setModal] = useState({
-    show: false,
-    type: "", // 'success' atau 'error'
-    message: "",
-  });
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -20,36 +17,52 @@ const FormLogin = () => {
     (state) => state.auth
   );
 
+  // Gunakan useModal hook
+  const { Modal, showModal, hideModal } = useModal();
+
   useEffect(() => {
+    console.log("Auth state changed:", { user, isSuccess, isError, message }); // Debug log
+
     if (user && isSuccess) {
-      setModal({
-        show: true,
+      console.log("Showing success modal"); // Debug log
+      showModal({
         type: "success",
+        title: "Login Berhasil!",
         message: "Login berhasil! Mengarahkan ke dashboard...",
+        confirmText: "Lanjutkan",
+        onConfirm: () => {
+          hideModal();
+          const dashboardRoutes = {
+            Admin: "/admin/dashboard",
+            Student: "/student/dashboard",
+          };
+          navigate(dashboardRoutes[user.role] || "/");
+          dispatch(reset());
+        },
       });
-
-      const timer = setTimeout(() => {
-        const dashboardRoutes = {
-          Admin: "/admin/dashboard",
-          Teacher: "/teacher/dashboard",
-          Student: "/student/dashboard",
-        };
-        navigate(dashboardRoutes[user.role] || "/");
-        dispatch(reset()); // <-- reset setelah navigasi
-      }, 2000);
-
-      return () => clearTimeout(timer);
     }
 
     if (isError) {
+      console.log("Showing error modal:", message); // Debug log
       setIsSubmitting(false);
-      setModal({
-        show: true,
+      showModal({
         type: "error",
+        title: "Login Gagal",
         message: message || "Terjadi kesalahan saat login",
+        confirmText: "Coba Lagi",
+        onConfirm: hideModal,
       });
     }
-  }, [user, isSuccess, isError, message, navigate, dispatch]);
+  }, [
+    user,
+    isSuccess,
+    isError,
+    message,
+    navigate,
+    dispatch,
+    showModal,
+    hideModal,
+  ]);
 
   const handleInputChange = useCallback((e) => {
     setCredentials((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -57,23 +70,38 @@ const FormLogin = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    // Validasi input
+    if (!credentials.email || !credentials.password) {
+      showModal({
+        type: "warning",
+        title: "Data Tidak Lengkap",
+        message: "Harap isi email dan password dengan benar.",
+        confirmText: "Mengerti",
+        onConfirm: hideModal,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const result = await dispatch(login(credentials));
-      // Hapus dispatch(reset()) dari sini
-    } catch (error) {
-      setModal({
-        show: true,
-        type: "error",
-        message: "Terjadi kesalahan saat mencoba login",
+      // Tampilkan loading modal
+      showModal({
+        type: "loading",
+        title: "Memproses Login",
+        message: "Sedang memverifikasi data...",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
-  const closeModal = () => {
-    setModal({ ...modal, show: false });
+      const result = await dispatch(login(credentials)).unwrap();
+      console.log("Login result:", result); // Debug log
+
+      // Loading modal akan otomatis tertutup oleh useEffect ketika isSuccess true
+    } catch (error) {
+      console.error("Login error:", error); // Debug log
+      // Error modal akan ditampilkan oleh useEffect ketika isError true
+    } finally {
+      // Jangan set isSubmitting false di sini karena useEffect sudah menanganinya
+    }
   };
 
   return (
@@ -102,9 +130,11 @@ const FormLogin = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className={`w-full bg-primary hover:bg-secondary text-white py-3.5 px-6 rounded-lg font-semibold transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2 ${
-            isSubmitting ? "opacity-75 cursor-not-allowed" : ""
-          }`}
+          className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 shadow-md hover:shadow-lg ${
+            isSubmitting
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-[#D4AF37] hover:bg-[#B8941F] transform hover:-translate-y-0.5"
+          } flex items-center justify-center gap-2`}
         >
           {isSubmitting ? (
             <>
@@ -136,79 +166,13 @@ const FormLogin = () => {
         </button>
       </form>
 
-      {/* Modal Component */}
-      {modal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div
-            className={`bg-neutral_bg rounded-lg shadow-xl overflow-hidden w-full max-w-md ${
-              modal.type === "success"
-                ? "border-t-4 border-primary"
-                : "border-t-4 border-accent"
-            }`}
-          >
-            <div className="p-6">
-              <div className="flex items-center gap-4">
-                {modal.type === "success" ? (
-                  <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary bg-opacity-20">
-                    <svg
-                      className="h-6 w-6 text-secondary"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                ) : (
-                  <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-accent bg-opacity-20">
-                    <svg
-                      className="h-6 w-6 text-accent"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {modal.type === "success" ? "Berhasil!" : "Gagal!"}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-600">{modal.message}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-4 py-3 flex justify-end">
-              <button
-                type="button"
-                onClick={closeModal}
-                className={`py-2 px-4 rounded-md text-sm font-medium ${
-                  modal.type === "success"
-                    ? "text-secondary hover:bg-primary hover:bg-opacity-10"
-                    : "text-accent hover:bg-accent hover:bg-opacity-10"
-                }`}
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Component - PASTIKAN INI DIMASUKKAN */}
+      <Modal />
     </AuthLayout>
   );
 };
 
+// Komponen InputField
 const InputField = ({ label, name, type, value, onChange, required }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -219,13 +183,14 @@ const InputField = ({ label, name, type, value, onChange, required }) => (
       type={type}
       value={value}
       onChange={onChange}
-      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-primary focus:ring-2 focus:ring-blue-100 transition-all"
+      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37] focus:ring-opacity-20 transition-all"
       placeholder={label}
       required={required}
     />
   </div>
 );
 
+// Komponen PasswordField
 const PasswordField = ({
   label,
   name,
@@ -245,14 +210,14 @@ const PasswordField = ({
         type={showPassword ? "text" : "password"}
         value={value}
         onChange={onChange}
-        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-primary focus:ring-2 focus:ring-blue-100 transition-all pr-12"
+        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37] focus:ring-opacity-20 transition-all pr-12"
         placeholder="••••••••"
         required={required}
       />
       <button
         type="button"
         onClick={toggleShowPassword}
-        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#D4AF37] transition-colors"
       >
         {showPassword ? (
           <svg

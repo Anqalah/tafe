@@ -1,62 +1,68 @@
 import { Link } from "react-router-dom";
 import Logo from "../../assets/logo/logo.png";
+import bg_home from "../../assets/logo/bg_home.jpg";
 
 const AuthLayout = ({ children, title, type }) => {
   return (
-    <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-        {/* Bagian Branding Institusi */}
-        <div className="hidden md:flex md:w-2/5 bg-[#2A4365] p-10 items-center justify-center">
-          <div className="text-white text-center space-y-8">
-            <div className="inline-block bg-white p-8 rounded-3xl">
-              <img src={Logo} alt="Logo Institusi" className="" />
-            </div>
-            <h2 className="text-4xl font-bold leading-tight text-[#D4AF37]">
-              LPK MALEO GOGAKUIN
-            </h2>
-            <p className="text-2xl font-light text-[#F5F7FA]">PALU</p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-bg relative overflow-hidden ">
+      {/* Background Image with Overlay */}
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-20"
+        style={{ backgroundImage: `url(${bg_home})` }}
+      />
+      <div className="w-full max-w-5xl grid md:grid-cols-2 bg-card rounded-3xl shadow-2xl overflow-hidden relative animate-scale-in">
+        {/* Bagian Kiri - Logo*/}
+        <div className="bg-secondary p-8 md:p-12 flex flex-col items-center justify-center text-center">
+          <div className="bg-white rounded-3xl p-8 mb-6 shadow-xl">
+            <img
+              src={Logo}
+              alt="Maleo Gogakuin Palu"
+              className="w-48 h-48 object-contain"
+            />
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
+            LPK MALEO GOGAKUIN
+          </h1>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">
+            PALU
+          </h2>
         </div>
 
-        {/* Konten Utama */}
-        <div className="md:w-3/5 p-10 flex flex-col justify-between">
-          <div>
-            <div className="space-y-2 mb-10">
-              <h1 className="text-4xl font-bold text-[#4A5568] text-center md:text-left">
-                {title}
-              </h1>
-              <p className="text-lg text-[#4A5568]/80 font-light text-center md:text-left">
-                {type === "login"
-                  ? "Silakan masuk untuk melanjutkan ke sistem presensi"
-                  : "Daftarkan diri Anda untuk akses sistem presensi"}
-              </p>
-            </div>
-
-            <div className="max-w-md mx-auto md:mx-0">{children}</div>
+        {/* Bagian Kanan - Konten */}
+        <div className="p-4 md:p-12 flex flex-col justify-center bg-white">
+          <div className="mb-4">
+            <h2 className="text-3xl font-bold text-foreground mb-2">{title}</h2>
+            <p className="text-muted-foreground">
+              {type === "login"
+                ? "Silakan masuk untuk melanjutkan ke sistem presensi"
+                : "Daftarkan diri Anda untuk akses sistem presensi"}
+            </p>
           </div>
 
+          <div className="space-y-4">{children}</div>
+
           {/* Footer Links */}
-          <div className="mt-8 pt-6 border-t border-[#2A4365]/20 flex flex-col items-center">
+          <div className="text-center space-y-3">
             {type === "login" ? (
-              <div className="flex flex-col gap-3 text-center items-center">
+              <div className="flex flex-col gap-3 text-center items-center pt-4">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-[#2A4365] hover:text-[#D4AF37] transition-colors"
+                  className="block text-sm text-secondary hover:text-secondary/80 transition-colors"
                 >
                   Lupa Password?
                 </Link>
-                <p className="text-sm text-[#4A5568]">
+                <p className="text-sm text-muted-foreground">
                   Belum punya akun?{" "}
                   <Link
                     to="/register"
-                    className="font-semibold text-[#2A4365] hover:text-[#D4AF37] transition-colors"
+                    className="text-secondary font-semibold hover:text-secondary/80 transition-colors"
                   >
                     Daftar sekarang
                   </Link>
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-[#4A5568] text-center">
+              <p className="text-sm text-[#4A5568] text-center pt-4">
                 Sudah punya akun?{" "}
                 <Link
                   to="/login"
@@ -67,7 +73,7 @@ const AuthLayout = ({ children, title, type }) => {
               </p>
             )}
 
-            <div className="mt-6 text-center text-xs text-[#4A5568]/60">
+            <div className="text-center text-xs text-muted-foreground mt-8">
               © {new Date().getFullYear()} LPK MALEO GOGAKUIN. All rights
               reserved.
             </div>
