@@ -244,7 +244,7 @@ const StudentLayout = ({ children }) => {
         <ProfileCard
           user={user}
           onViewProfile={() => navigate(`/student/profile/${user.uuid}`)}
-          onUpdateFace={() => navigate(`/student/updateface/${user.uuid}`)} // ✅ tambahkan ini
+          onUpdateFace={() => navigate(`/student/updateface/${user.uuid}`)}
           onLogout={() => {
             dispatch(logout());
             dispatch(reset());
