@@ -2,7 +2,6 @@ import {
   ArrowPathIcon,
   CameraIcon,
   CheckCircleIcon,
-  FaceSmileIcon,
   DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   PhotoIcon,
@@ -14,6 +13,7 @@ import { useSelector } from "react-redux";
 import Webcam from "react-webcam";
 import axiosFastAPI from "../../config/axiosFastAPI";
 import StudentLayout from "../../components/Layouts/StudentLayout";
+import axiosInstance from "../../config/axios";
 
 const UpdateFace = () => {
   const webcamRef = useRef(null);
@@ -26,37 +26,53 @@ const UpdateFace = () => {
   const [comparisonData, setComparisonData] = useState(null);
   const [oldEmbeddingData, setOldEmbeddingData] = useState(null);
   const [oldFaceImage, setOldFaceImage] = useState(null);
+
   const user = useSelector((state) => state.auth.user);
-  const studentId = user?.id || user?._id;
+  // ⚠️ PENTING: selalu utamakan uuid agar sesuai dengan enroll
+  const studentId = user?.uuid || user?.id || user?._id;
 
   useEffect(() => {
     console.log("🧠 Redux user:", user);
-    console.log("🎓 Student ID:", studentId);
-  }, [user]);
+    console.log("🎓 Student ID (dipakai ke FastAPI):", studentId);
+  }, [user, studentId]);
 
   useEffect(() => {
     if (studentId) {
       fetchOldData();
+      fetchOldFaceImage();
     } else {
       console.warn("⚠️ Student ID belum tersedia, menunggu getMe...");
     }
   }, [studentId]);
 
   const handleCapture = async () => {
-    const imageSrc = webcamRef.current.getScreenshot();
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (!imageSrc) {
+      toast.error("Gagal mengambil foto. Coba lagi.");
+      return;
+    }
+
     setCapturedImage(imageSrc);
     setCameraActive(false);
 
-    // Ambil data embedding lama dan foto sebelum update
-    await fetchOldData();
+    // data lama sudah di-fetch di useEffect, jadi di sini
+    // cukup pakai oldEmbeddingData kalau sudah ada
+    if (oldEmbeddingData) {
+      setComparisonData({
+        oldEmbedding: oldEmbeddingData.centroid,
+        n_embeddings_old: oldEmbeddingData.n_embeddings,
+        n_embeddings_new: 0,
+        last_updated: oldEmbeddingData.last_updated,
+      });
+    }
   };
 
-  // Fungsi untuk mengambil data lama dan foto
   const fetchOldData = async () => {
-    try {
-      setLogs(["📡 Mengambil data wajah lama..."]);
+    if (!studentId) return null;
 
-      // Ambil summary data
+    try {
+      setLogs((prev) => [...prev, "📡 Mengambil data wajah lama..."]);
+
       const summaryResponse = await axiosFastAPI.get("/summary");
       if (summaryResponse.data && summaryResponse.data[studentId]) {
         const studentData = summaryResponse.data[studentId];
@@ -68,82 +84,86 @@ const UpdateFace = () => {
         };
         setOldEmbeddingData(oldData);
         setLogs((prev) => [...prev, "✅ Data embedding lama berhasil diambil"]);
+        return oldData;
       }
 
-      // Coba ambil foto lama dari endpoint khusus atau dari localStorage
-      await fetchOldFaceImage();
-    } catch (error) {
-      console.log("Tidak dapat mengambil data lama:", error);
       setLogs((prev) => [
         ...prev,
-        "❌ Gagal mengambil data lama, menggunakan data simulasi",
+        "ℹ️ Belum ada embedding lama tersimpan untuk akun ini.",
       ]);
-
-      // Fallback ke data dummy
-      setOldEmbeddingData({
-        centroid: Array.from({ length: 512 }, () =>
-          (Math.random() * 2 - 1).toFixed(4)
-        ),
-        n_embeddings: 3,
-        embedding_dim: 512,
-        last_updated: new Date().toLocaleDateString(),
-      });
+      setOldEmbeddingData(null);
+      return null;
+    } catch (error) {
+      console.log("Tidak dapat mengambil data lama:", error);
+      setLogs((prev) => [...prev, "❌ Gagal mengambil data lama dari server."]);
+      setOldEmbeddingData(null);
+      return null;
     }
   };
 
-  // Fungsi untuk mengambil foto lama (simulasi - sesuaikan dengan backend Anda)
   const fetchOldFaceImage = async () => {
     try {
-      setLogs((prev) => [...prev, "🖼️ Mencari foto lama..."]);
-      const storedOldFace = localStorage.getItem(`old_face_${studentId}`);
-      if (storedOldFace) {
-        setOldFaceImage(storedOldFace);
-        setLogs((prev) => [...prev, "✅ Foto lama ditemukan di localStorage"]);
-        return;
+      setLogs((prev) => [...prev, "🖼️ Mengambil foto lama dari backend..."]);
+      if (user?.face_image) {
+        setOldFaceImage(user.face_image);
+        setLogs((prev) => [
+          ...prev,
+          "✅ Foto lama berhasil diambil dari server",
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          "ℹ️ Belum ada foto wajah yang tersimpan di server.",
+        ]);
       }
     } catch (error) {
       console.log("Error mengambil foto lama:", error);
-      setLogs((prev) => [...prev, "❌ Gagal mengambil foto lama"]);
+      setLogs((prev) => [...prev, "❌ Gagal mengambil foto lama dari server"]);
     }
   };
 
-  // Fungsi untuk menghitung similarity antara dua embedding
+  // Cosine similarity
   const calculateSimilarity = (embedding1, embedding2) => {
-    if (!embedding1 || !embedding2) return 0;
+    if (!embedding1 || !embedding2) return null;
 
     const e1 = embedding1.slice(0, 128);
     const e2 = embedding2.slice(0, 128);
 
-    // Cosine similarity
     let dotProduct = 0;
     let norm1 = 0;
     let norm2 = 0;
 
     for (let i = 0; i < e1.length; i++) {
-      dotProduct += parseFloat(e1[i]) * parseFloat(e2[i]);
-      norm1 += parseFloat(e1[i]) * parseFloat(e1[i]);
-      norm2 += parseFloat(e2[i]) * parseFloat(e2[i]);
+      const v1 = parseFloat(e1[i]);
+      const v2 = parseFloat(e2[i]);
+      if (Number.isNaN(v1) || Number.isNaN(v2)) continue;
+      dotProduct += v1 * v2;
+      norm1 += v1 * v1;
+      norm2 += v2 * v2;
     }
 
     norm1 = Math.sqrt(norm1);
     norm2 = Math.sqrt(norm2);
 
-    if (norm1 === 0 || norm2 === 0) return 0;
+    if (norm1 === 0 || norm2 === 0) return null;
 
     const similarity = dotProduct / (norm1 * norm2);
     return Math.max(0, Math.min(1, similarity));
   };
 
-  // Fungsi untuk menghitung Euclidean distance
+  // Euclidean distance
   const calculateDistance = (embedding1, embedding2) => {
-    if (!embedding1 || !embedding2) return 1;
+    if (!embedding1 || !embedding2) return null;
 
     const e1 = embedding1.slice(0, 128);
     const e2 = embedding2.slice(0, 128);
 
     let sum = 0;
     for (let i = 0; i < e1.length; i++) {
-      const diff = parseFloat(e1[i]) - parseFloat(e2[i]);
+      const v1 = parseFloat(e1[i]);
+      const v2 = parseFloat(e2[i]);
+      if (Number.isNaN(v1) || Number.isNaN(v2)) continue;
+      const diff = v1 - v2;
       sum += diff * diff;
     }
 
@@ -151,115 +171,100 @@ const UpdateFace = () => {
   };
 
   const handleUpdateFace = async () => {
-    if (!capturedImage) return toast.error("Harap ambil foto terlebih dahulu");
+    if (!capturedImage) {
+      toast.error("Harap ambil foto terlebih dahulu");
+      return;
+    }
+    if (!studentId) {
+      toast.error("ID mahasiswa tidak ditemukan");
+      return;
+    }
 
     try {
       setIsUploading(true);
-      setProgress(0);
-      setLogs(["🚀 Memulai proses update wajah..."]);
+      setProgress(20);
+      setLogs((prev) => [...prev, "🚀 Memulai proses update wajah..."]);
 
-      // Convert base64 ke Blob/File
       const base64Response = await fetch(capturedImage);
       const blob = await base64Response.blob();
       const formData = new FormData();
       formData.append("file", blob, "face.jpg");
       formData.append("studentId", studentId);
 
-      // Simpan foto baru ke localStorage sebagai referensi
-      localStorage.setItem(`old_face_${studentId}`, capturedImage);
-
-      // Progress simulation
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
-
-      // Tahap 1: Kirim request update ke backend
-      setLogs((prev) => [...prev, "📤 Mengupload foto ke server..."]);
       const response = await axiosFastAPI.post("/update_face", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      clearInterval(progressInterval);
-      setProgress(100);
+      const data = response.data;
+      console.log("update_face response:", data);
+      setProgress(70);
 
-      // Process logs berdasarkan response actual dari backend
-      const backendLogs = [
-        "✅ Foto berhasil diupload",
-        "🧠 Model AI memproses gambar...",
-        "📊 Mengekstraksi fitur wajah...",
-        `✅ Embedding berhasil dibuat (${
-          response.data.n_embeddings || 1
-        } samples)`,
-        "💾 Menyimpan data ke database...",
-        "🗑️ Menghapus data lama...",
-        "📝 Memperbarui summary...",
-      ];
+      if (data.status === "success") {
+        toast.success(data.message);
 
-      for (let i = 0; i < backendLogs.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        setLogs((prev) => [...prev, backendLogs[i]]);
-
-        // Set comparison data setelah log ekstraksi fitur
-        if (i === 2 && oldEmbeddingData) {
-          const newEmbedding = Array.from({ length: 512 }, () =>
-            (Math.random() * 2 - 1).toFixed(4)
-          );
-          const similarity = calculateSimilarity(
-            oldEmbeddingData.centroid,
-            newEmbedding
-          );
-          const distance = calculateDistance(
-            oldEmbeddingData.centroid,
-            newEmbedding
-          );
-
-          setComparisonData({
-            oldEmbedding: oldEmbeddingData.centroid,
-            newEmbedding: newEmbedding,
-            similarity: similarity,
-            distance: distance,
-            n_embeddings_old: oldEmbeddingData.n_embeddings,
-            n_embeddings_new: response.data.n_embeddings || 1,
-            last_updated: new Date().toLocaleString(),
-            processing_time: `${(Math.random() * 2 + 1).toFixed(1)} detik`,
-          });
-        }
-      }
-
-      // Final logs
-      setLogs((prev) => [
-        ...prev,
-        "✅ Summary berhasil diperbarui",
-        "🎉 Update wajah selesai!",
-        `⏱️ Total waktu: ${(Math.random() * 3 + 2).toFixed(1)} detik`,
-      ]);
-
-      if (response.data.status === "ok") {
-        toast.success("Wajah berhasil diperbarui!");
         setSuccess(true);
+        setLogs((prev) => [
+          ...prev,
+          "✅ Embedding baru berhasil dihitung & disimpan",
+        ]);
 
-        // Update foto lama dengan yang baru untuk preview selanjutnya
+        // simpan foto baru sebagai "foto lama" untuk sesi berikutnya
+        try {
+          localStorage.setItem(`old_face_${studentId}`, capturedImage);
+        } catch (e) {
+          console.warn("Gagal menyimpan foto ke localStorage:", e);
+        }
         setOldFaceImage(capturedImage);
-      } else {
-        throw new Error(response.data.reason || "Gagal memperbarui wajah");
+
+        const newEmbedding = data.embedding;
+
+        if (Array.isArray(newEmbedding)) {
+          const nextComparison = {
+            ...(comparisonData || {}),
+            newEmbedding,
+            n_embeddings_new: 1,
+            last_updated: new Date().toLocaleString(),
+            processing_time: data.total_time ? `${data.total_time} detik` : "-",
+          };
+
+          if (oldEmbeddingData?.centroid) {
+            const similarity = calculateSimilarity(
+              oldEmbeddingData.centroid,
+              newEmbedding
+            );
+            const distance = calculateDistance(
+              oldEmbeddingData.centroid,
+              newEmbedding
+            );
+
+            nextComparison.oldEmbedding = oldEmbeddingData.centroid;
+            nextComparison.n_embeddings_old = oldEmbeddingData.n_embeddings;
+            nextComparison.similarity = similarity;
+            nextComparison.distance = distance;
+          }
+
+          setComparisonData(nextComparison);
+        } else {
+          console.warn("⚠️ newEmbedding bukan array:", newEmbedding);
+        }
+
+        setProgress(100);
+        return;
       }
+
+      const msg = data.message || data.reason || "Gagal memperbarui wajah";
+      toast.error(msg);
+      setLogs((prev) => [...prev, `❌ ${msg}`]);
+      setProgress(0);
     } catch (err) {
-      console.error("Update error:", err);
-      const errorMessage =
-        err.response?.data?.detail || err.message || "Terjadi kesalahan server";
-      setLogs((prev) => [
-        ...prev,
-        "❌ Gagal memproses permintaan",
-        `💥 Error: ${errorMessage}`,
-        "🔄 Silakan coba lagi",
-      ]);
-      toast.error(errorMessage);
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.reason ||
+        err.message ||
+        "Terjadi kesalahan server";
+      toast.error(msg);
+      setLogs((prev) => [...prev, `❌ ${msg}`]);
+      setProgress(0);
     } finally {
       setIsUploading(false);
     }
@@ -272,6 +277,7 @@ const UpdateFace = () => {
     setCameraActive(true);
     setComparisonData(null);
     setOldEmbeddingData(null);
+    setProgress(0);
   };
 
   const retakePhoto = () => {
@@ -279,6 +285,7 @@ const UpdateFace = () => {
     setCameraActive(true);
     setComparisonData(null);
     setLogs([]);
+    setProgress(0);
   };
 
   const copyEmbedding = (embedding, type) => {
@@ -293,56 +300,375 @@ const UpdateFace = () => {
     toast.success("Log berhasil disalin!");
   };
 
-  // Komponen untuk menampilkan vektor embedding
-  const EmbeddingDisplay = ({ embedding, title, type, n_embeddings }) => (
-    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-      <div className="flex justify-between items-center mb-3">
-        <div>
-          <h4 className="font-semibold text-gray-800">{title}</h4>
-          {n_embeddings && (
-            <p className="text-xs text-gray-500">
-              Jumlah sampel: {n_embeddings}
-            </p>
+  const EmbeddingDisplay = ({ embedding, title, type, n_embeddings }) => {
+    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+      return (
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <h4 className="font-semibold text-gray-800">{title}</h4>
+              {n_embeddings && (
+                <p className="text-xs text-gray-500">
+                  Jumlah sampel: {n_embeddings}
+                </p>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">Embedding belum tersedia.</p>
+        </div>
+      );
+    }
+
+    const norm = Math.sqrt(
+      embedding.reduce((sum, val) => {
+        const f = parseFloat(val);
+        if (Number.isNaN(f)) return sum;
+        return sum + f * f;
+      }, 0)
+    );
+
+    return (
+      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <div className="flex justify-between items-center mb-3">
+          <div>
+            <h4 className="font-semibold text-gray-800">{title}</h4>
+            {n_embeddings && (
+              <p className="text-xs text-gray-500">
+                Jumlah sampel: {n_embeddings}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => copyEmbedding(embedding, type)}
+            className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded"
+            title="Salin embedding"
+          >
+            <DocumentDuplicateIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="max-h-32 overflow-y-auto text-xs font-mono bg-white p-2 rounded border">
+          <div className="grid grid-cols-4 gap-1">
+            {embedding.slice(0, 12).map((value, index) => {
+              const f = parseFloat(value);
+              return (
+                <span
+                  key={index}
+                  className="text-gray-600 truncate"
+                  title={String(value)}
+                >
+                  {Number.isNaN(f) ? "NaN" : f.toFixed(3)}
+                </span>
+              );
+            })}
+          </div>
+          {embedding.length > 12 && (
+            <div className="text-center text-gray-400 mt-1">
+              ... dan {embedding.length - 12} nilai lainnya
+            </div>
           )}
         </div>
-        <button
-          onClick={() => copyEmbedding(embedding, type)}
-          className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded"
-          title="Salin embedding"
-        >
-          <DocumentDuplicateIcon className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="max-h-32 overflow-y-auto text-xs font-mono bg-white p-2 rounded border">
-        <div className="grid grid-cols-4 gap-1">
-          {embedding.slice(0, 12).map((value, index) => (
-            <span key={index} className="text-gray-600 truncate" title={value}>
-              {parseFloat(value).toFixed(3)}
-            </span>
-          ))}
-        </div>
-        {embedding.length > 12 && (
-          <div className="text-center text-gray-400 mt-1">
-            ... dan {embedding.length - 12} nilai lainnya
-          </div>
-        )}
-      </div>
-      <div className="mt-2 text-xs text-gray-500 flex justify-between">
-        <span>Dimensi: {embedding.length} vektor</span>
-        <span>
-          Norm:{" "}
-          {Math.sqrt(
-            embedding.reduce(
-              (sum, val) => sum + parseFloat(val) * parseFloat(val),
-              0
-            )
-          ).toFixed(3)}
-        </span>
-      </div>
-    </div>
-  );
 
-  // ✅ Tambahkan di sini
+        <div className="mt-2 text-xs text-gray-500 flex justify-between">
+          <span>Dimensi: {embedding.length} vektor</span>
+          <span>Norm: {norm.toFixed(3)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const ComparisonPopup = ({
+    open,
+    onClose,
+    oldFaceImage,
+    newFaceImage,
+    similarity,
+    distance,
+    oldEmbedding,
+    newEmbedding,
+  }) => {
+    if (!open) return null;
+
+    const hasMetrics =
+      typeof similarity === "number" && typeof distance === "number";
+    const simPercent = hasMetrics ? (similarity * 100).toFixed(1) : null;
+    const distText = hasMetrics ? distance.toFixed(4) : "–";
+
+    const statusColor = hasMetrics
+      ? similarity > 0.5
+        ? "text-green-600"
+        : "text-yellow-600"
+      : "text-gray-600";
+
+    const statusText = !hasMetrics
+      ? "Belum tersedia"
+      : similarity > 0.5
+      ? "Konsisten"
+      : "Perlu dicek";
+
+    const statusDesc = !hasMetrics
+      ? "Belum ada embedding lama untuk dibandingkan."
+      : similarity > 0.5
+      ? "Embedding baru masih konsisten dengan wajah lama."
+      : "Perbedaan cukup besar, pastikan ini benar wajah Anda.";
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+          className="bg-white w-full max-w-5xl mx-4 rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+        >
+          {/* Header */}
+          <div className="px-6 py-4 bg-gradient-to-r from-[#2A4365] to-[#D4AF37] text-white flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">
+                Perbandingan Wajah Lama & Baru
+              </h3>
+              <p className="text-xs text-white/80">
+                Sistem membandingkan embedding wajah lama dengan embedding wajah
+                yang baru Anda ambil.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-white/80 hover:text-white text-sm px-3 py-1 rounded-lg border border-white/30 hover:bg-white/10"
+            >
+              Tutup
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-6">
+            {/* Foto Lama vs Baru */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <PhotoIcon className="w-4 h-4 text-blue-500" />
+                  Wajah Lama (Tersimpan)
+                </p>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col items-center">
+                  {oldFaceImage ? (
+                    <img
+                      src={oldFaceImage}
+                      alt="Foto Lama"
+                      className="w-40 h-40 rounded-lg object-cover shadow-md mb-2"
+                    />
+                  ) : (
+                    <div className="w-40 h-40 rounded-lg bg-gray-200 flex items-center justify-center text-xs text-gray-500 mb-2">
+                      Tidak ada foto lama
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-700">
+                    Wajah yang saat ini tersimpan di database.
+                  </p>
+                </div>
+
+                <EmbeddingDisplay
+                  embedding={oldEmbedding}
+                  title="Embedding Lama (Centroid)"
+                  type="lama"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <CameraIcon className="w-4 h-4 text-green-500" />
+                  Wajah Baru (Hasil Update)
+                </p>
+                <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center">
+                  {newFaceImage ? (
+                    <img
+                      src={newFaceImage}
+                      alt="Foto Baru"
+                      className="w-40 h-40 rounded-lg object-cover shadow-md mb-2"
+                    />
+                  ) : (
+                    <div className="w-40 h-40 rounded-lg bg-gray-200 flex items-center justify-center text-xs text-gray-500 mb-2">
+                      Belum ada foto baru
+                    </div>
+                  )}
+                  <p className="text-xs text-green-700">
+                    Wajah terbaru yang baru saja Anda ambil.
+                  </p>
+                </div>
+
+                <EmbeddingDisplay
+                  embedding={newEmbedding}
+                  title="Embedding Baru"
+                  type="baru"
+                />
+              </div>
+            </div>
+
+            {/* Ringkasan Similarity */}
+            <div className="mt-2 rounded-xl border bg-gray-50 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">
+                    Similarity (Cosine)
+                  </p>
+                  <p className={`text-2xl font-bold ${statusColor}`}>
+                    {simPercent ? `${simPercent}%` : "–"}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Semakin tinggi, semakin mirip
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">
+                    Distance (Euclidean)
+                  </p>
+                  <p className="text-xl font-bold text-gray-700">{distText}</p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Semakin kecil, semakin dekat
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">
+                    Interpretasi
+                  </p>
+                  <p className={`text-lg font-bold ${statusColor}`}>
+                    {statusText}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">{statusDesc}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-3 bg-gray-50 border-t flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-lg bg-[#2A4365] text-white hover:bg-[#1f3550] transition-colors"
+            >
+              Tutup Perbandingan
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  const handleUpdateFace = async () => {
+    if (!capturedImage) return toast.error("Harap ambil foto terlebih dahulu");
+    if (!studentUuid) return toast.error("ID mahasiswa tidak ditemukan");
+
+    try {
+      setIsUploading(true);
+      setProgress(10);
+      setLogs(["🚀 Memulai proses update wajah..."]);
+
+      // === 1) Kirim ke FastAPI untuk update embedding ===
+      const base64Response = await fetch(capturedImage);
+      const blob = await base64Response.blob();
+
+      const formDataFastApi = new FormData();
+      formDataFastApi.append("file", blob, "face.jpg");
+      formDataFastApi.append("studentId", studentUuid);
+
+      const fastApiRes = await axiosFastAPI.post(
+        "/update_face",
+        formDataFastApi,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      const fastApiData = fastApiRes.data;
+      setProgress(50);
+      setLogs((prev) => [
+        ...prev,
+        "✅ Embedding baru berhasil dihitung FastAPI",
+      ]);
+
+      if (fastApiData.status !== "success") {
+        const msg =
+          fastApiData.message || fastApiData.reason || "Update embedding gagal";
+        toast.error(msg);
+        setLogs((prev) => [...prev, `❌ ${msg}`]);
+        setIsUploading(false);
+        setProgress(0);
+        return;
+      }
+
+      // === 2) Kirim ke backend Node untuk ganti face_image di DB ===
+      const formDataNode = new FormData();
+      formDataNode.append("face_image", blob, "face.jpg"); // ⬅️ nama field sama dengan controller
+      formDataNode.append("dummy", "1"); // kalau mau ada body lain
+
+      const nodeRes = await axiosInstance.patch(
+        `/students/${studentId}/face`,
+        formDataNode,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      const nodeData = nodeRes.data;
+      if (nodeData.face_image) {
+        setOldFaceImage(nodeData.face_image); // update tampilan foto lama jadi foto baru
+        setLogs((prev) => [
+          ...prev,
+          "✅ Foto wajah di database berhasil diperbarui",
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          "⚠️ Foto di database tidak dapat diperbarui (tanpa error fatal).",
+        ]);
+      }
+
+      setProgress(90);
+      toast.success(fastApiData.message || "Update wajah berhasil");
+      setSuccess(true);
+
+      // === 3) Update data perbandingan seperti sebelumnya ===
+      const newEmbedding = fastApiData.embedding;
+
+      if (Array.isArray(newEmbedding)) {
+        const nextComparison = {
+          ...(comparisonData || {}),
+          newEmbedding,
+          n_embeddings_new: 1,
+          last_updated: new Date().toLocaleString(),
+          processing_time: fastApiData.total_time
+            ? `${fastApiData.total_time} detik`
+            : "-",
+        };
+
+        if (oldEmbeddingData?.centroid) {
+          const similarity = calculateSimilarity(
+            oldEmbeddingData.centroid,
+            newEmbedding
+          );
+          const distance = calculateDistance(
+            oldEmbeddingData.centroid,
+            newEmbedding
+          );
+
+          nextComparison.oldEmbedding = oldEmbeddingData.centroid;
+          nextComparison.n_embeddings_old = oldEmbeddingData.n_embeddings;
+          nextComparison.similarity = similarity;
+          nextComparison.distance = distance;
+        }
+
+        setComparisonData(nextComparison);
+      }
+
+      setProgress(100);
+    } catch (err) {
+      const msg =
+        err.response?.data?.msg ||
+        err.response?.data?.message ||
+        err.message ||
+        "Terjadi kesalahan server";
+      toast.error(msg);
+      setLogs((prev) => [...prev, `❌ ${msg}`]);
+      setProgress(0);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  // debug log
   console.log("=== UpdateFace Render ===");
   console.log("📸 capturedImage:", capturedImage ? "ADA FOTO" : "BELUM ADA");
   console.log("📤 isUploading:", isUploading);
@@ -352,7 +678,7 @@ const UpdateFace = () => {
   console.log("📂 oldEmbeddingData:", oldEmbeddingData);
   console.log("🖼️ oldFaceImage:", oldFaceImage ? "ADA FOTO LAMA" : "BELUM ADA");
   console.log("🧾 logs:", logs.length, "items");
-  console.log(studentId);
+  console.log("studentId:", studentId);
   console.log("=========================");
 
   return (
@@ -411,7 +737,6 @@ const UpdateFace = () => {
                           height: 400,
                         }}
                       />
-                      {/* Overlay lingkaran */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="w-48 h-48 border-2 border-[#D4AF37] rounded-full border-dashed opacity-60"></div>
                       </div>
@@ -446,7 +771,6 @@ const UpdateFace = () => {
                     exit={{ opacity: 0 }}
                     className="space-y-6"
                   >
-                    {/* Header Preview */}
                     <div className="text-center">
                       <h3 className="text-xl font-bold text-gray-800 mb-2">
                         Konfirmasi Update Wajah
@@ -466,13 +790,19 @@ const UpdateFace = () => {
 
                         <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
                           <div className="text-center">
-                            <img
-                              src={oldFaceImage}
-                              alt="Foto Lama"
-                              className="rounded-lg shadow-md w-48 h-48 object-cover mx-auto mb-3"
-                            />
+                            {oldFaceImage ? (
+                              <img
+                                src={oldFaceImage}
+                                alt="Foto Lama"
+                                className="rounded-lg shadow-md w-48 h-48 object-cover mx-auto mb-3"
+                              />
+                            ) : (
+                              <div className="rounded-lg shadow-inner w-48 h-48 mx-auto mb-3 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                                Belum ada foto lama
+                              </div>
+                            )}
                             <p className="text-sm text-blue-600">
-                              Foto yang tersimpan di database
+                              Foto yang tersimpan di perangkat / database
                             </p>
                             {oldEmbeddingData && (
                               <div className="text-xs text-blue-600 space-y-1 mt-2">
@@ -489,7 +819,6 @@ const UpdateFace = () => {
                           </div>
                         </div>
 
-                        {/* Embedding Lama */}
                         {oldEmbeddingData && (
                           <EmbeddingDisplay
                             embedding={oldEmbeddingData.centroid}
@@ -528,106 +857,107 @@ const UpdateFace = () => {
                           </div>
                         </div>
 
-                        {/* Embedding Baru (Preview) */}
-                        {comparisonData && (
+                        {comparisonData?.newEmbedding && (
                           <EmbeddingDisplay
                             embedding={comparisonData.newEmbedding}
                             title="Embedding Baru (Preview)"
                             type="baru"
-                            n_embeddings={1}
+                            n_embeddings={comparisonData.n_embeddings_new || 1}
                           />
                         )}
                       </div>
                     </div>
 
                     {/* Informasi Similarity */}
-                    {comparisonData && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`rounded-xl p-4 border ${
-                          comparisonData.similarity > 0.5
-                            ? "bg-green-50 border-green-200"
-                            : "bg-yellow-50 border-yellow-200"
-                        }`}
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                          <div>
-                            <div className="text-sm font-medium mb-1">
-                              Similarity
+                    {comparisonData &&
+                      typeof comparisonData.similarity === "number" &&
+                      typeof comparisonData.distance === "number" && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`rounded-xl p-4 border ${
+                            comparisonData.similarity > 0.5
+                              ? "bg-green-50 border-green-200"
+                              : "bg-yellow-50 border-yellow-200"
+                          }`}
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                            <div>
+                              <div className="text-sm font-medium mb-1">
+                                Similarity
+                              </div>
+                              <div
+                                className={`text-2xl font-bold ${
+                                  comparisonData.similarity > 0.5
+                                    ? "text-green-700"
+                                    : "text-yellow-700"
+                                }`}
+                              >
+                                {(comparisonData.similarity * 100).toFixed(1)}%
+                              </div>
+                              <div className="text-xs opacity-70 mt-1">
+                                Kemiripan wajah
+                              </div>
                             </div>
-                            <div
-                              className={`text-2xl font-bold ${
-                                comparisonData.similarity > 0.5
-                                  ? "text-green-700"
-                                  : "text-yellow-700"
-                              }`}
-                            >
-                              {(comparisonData.similarity * 100).toFixed(1)}%
+
+                            <div>
+                              <div className="text-sm font-medium mb-1">
+                                Distance
+                              </div>
+                              <div className="text-xl font-bold text-gray-700">
+                                {comparisonData.distance.toFixed(4)}
+                              </div>
+                              <div className="text-xs opacity-70 mt-1">
+                                Jarak Euclidean
+                              </div>
                             </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              Kemiripan wajah
+
+                            <div>
+                              <div className="text-sm font-medium mb-1">
+                                Waktu Proses
+                              </div>
+                              <div className="text-lg font-bold text-purple-700">
+                                {comparisonData.processing_time}
+                              </div>
+                              <div className="text-xs opacity-70 mt-1">
+                                Ekstraksi fitur
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-sm font-medium mb-1">
+                                Status
+                              </div>
+                              <div
+                                className={`text-lg font-bold ${
+                                  comparisonData.similarity > 0.5
+                                    ? "text-green-600"
+                                    : "text-yellow-600"
+                                }`}
+                              >
+                                {comparisonData.similarity > 0.5
+                                  ? "AMAN"
+                                  : "PERIKSA"}
+                              </div>
+                              <div className="text-xs opacity-70 mt-1">
+                                {comparisonData.similarity > 0.5
+                                  ? "Wajah terkonfirmasi sama"
+                                  : "Kemiripan rendah"}
+                              </div>
                             </div>
                           </div>
 
-                          <div>
-                            <div className="text-sm font-medium mb-1">
-                              Distance
+                          {comparisonData.similarity <= 0.5 && (
+                            <div className="flex items-center gap-2 mt-3 p-2 bg-yellow-100 rounded-lg text-yellow-700 text-sm">
+                              <ExclamationTriangleIcon className="w-4 h-4" />
+                              <span>
+                                Kemiripan rendah. Pastikan foto yang diambil
+                                adalah wajah Anda sendiri.
+                              </span>
                             </div>
-                            <div className="text-xl font-bold text-gray-700">
-                              {comparisonData.distance.toFixed(4)}
-                            </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              Jarak Euclidean
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm font-medium mb-1">
-                              Waktu Proses
-                            </div>
-                            <div className="text-lg font-bold text-purple-700">
-                              {comparisonData.processing_time}
-                            </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              Ekstraksi fitur
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm font-medium mb-1">
-                              Status
-                            </div>
-                            <div
-                              className={`text-lg font-bold ${
-                                comparisonData.similarity > 0.5
-                                  ? "text-green-600"
-                                  : "text-yellow-600"
-                              }`}
-                            >
-                              {comparisonData.similarity > 0.5
-                                ? "AMAN"
-                                : "PERIKSA"}
-                            </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              {comparisonData.similarity > 0.5
-                                ? "Wajah terkonfirmasi sama"
-                                : "Kemiripan rendah"}
-                            </div>
-                          </div>
-                        </div>
-
-                        {comparisonData.similarity <= 0.5 && (
-                          <div className="flex items-center gap-2 mt-3 p-2 bg-yellow-100 rounded-lg text-yellow-700 text-sm">
-                            <ExclamationTriangleIcon className="w-4 h-4" />
-                            <span>
-                              Kemiripan rendah. Pastikan foto yang diambil
-                              adalah wajah Anda sendiri.
-                            </span>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
+                          )}
+                        </motion.div>
+                      )}
 
                     {/* Progress dan Logs */}
                     <div className="space-y-4">
@@ -636,9 +966,9 @@ const UpdateFace = () => {
                           <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
                             <motion.div
                               className="bg-gradient-to-r from-[#D4AF37] to-[#2A4365] h-3 rounded-full"
-                              initial={{ width: 0 }}
+                              initial={{ width: "0%" }}
                               animate={{ width: `${progress}%` }}
-                              transition={{ duration: 0.5 }}
+                              transition={{ duration: 0.4 }}
                             />
                           </div>
                           <p className="text-sm text-gray-600 text-center">
@@ -647,7 +977,6 @@ const UpdateFace = () => {
                         </>
                       )}
 
-                      {/* Logs Container */}
                       <div className="bg-gray-900 rounded-xl p-4 max-h-64 overflow-y-auto">
                         <div className="flex justify-between items-center mb-3">
                           <h4 className="text-white font-semibold flex items-center gap-2">
@@ -764,17 +1093,19 @@ const UpdateFace = () => {
 
                       {comparisonData && (
                         <div className="bg-green-50 rounded-xl p-4 max-w-md mx-auto border border-green-200">
-                          <div className="text-green-700 font-medium text-lg">
-                            Similarity:{" "}
-                            {(comparisonData.similarity * 100).toFixed(1)}%
-                          </div>
+                          {typeof comparisonData.similarity === "number" && (
+                            <div className="text-green-700 font-medium text-lg">
+                              Similarity:{" "}
+                              {(comparisonData.similarity * 100).toFixed(1)}%
+                            </div>
+                          )}
                           <div className="text-sm text-green-600 mt-1">
-                            Embedding baru telah tersimpan di database
+                            Embedding baru telah tersimpan di server
                           </div>
                           <div className="text-xs text-green-500 mt-2 space-y-1">
                             <p>
-                              Jumlah sampel: {comparisonData.n_embeddings_new}{" "}
-                              embedding
+                              Jumlah sampel baru:{" "}
+                              {comparisonData.n_embeddings_new} embedding
                             </p>
                             <p>
                               Waktu proses: {comparisonData.processing_time}
@@ -782,28 +1113,6 @@ const UpdateFace = () => {
                           </div>
                         </div>
                       )}
-                    </div>
-
-                    {/* Final Logs Summary */}
-                    <div className="bg-gray-50 rounded-xl p-4 max-w-2xl mx-auto">
-                      <h4 className="font-semibold text-gray-800 mb-2">
-                        Ringkasan Proses:
-                      </h4>
-                      <ul className="text-sm text-gray-600 space-y-1 text-left">
-                        {logs
-                          .filter(
-                            (log) =>
-                              log.includes("✅") ||
-                              log.includes("🎉") ||
-                              log.includes("⏱️")
-                          )
-                          .map((log, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                              {log}
-                            </li>
-                          ))}
-                      </ul>
                     </div>
 
                     <motion.button
@@ -821,6 +1130,22 @@ const UpdateFace = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Popup Perbandingan Wajah Lama & Baru */}
+      <AnimatePresence>
+        {comparisonData && capturedImage && (
+          <ComparisonPopup
+            open={true}
+            onClose={() => setComparisonData(null)}
+            oldFaceImage={oldFaceImage}
+            newFaceImage={capturedImage}
+            similarity={comparisonData.similarity}
+            distance={comparisonData.distance}
+            oldEmbedding={oldEmbeddingData?.centroid}
+            newEmbedding={comparisonData.newEmbedding}
+          />
+        )}
+      </AnimatePresence>
     </StudentLayout>
   );
 };
