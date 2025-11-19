@@ -1,49 +1,36 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
-import axiosFastAPI from "../../config/axiosFastAPI";
-import axiosInstance from "../../config/axios";
-import StudentLayout from "../../components/Layouts/StudentLayout";
-import FacePreviewPanel from "../../components/Elements/Face/FacePreviewPanel";
-import EmbeddingCard from "../../components/Elements/Face/EmbeddingCard";
-import SimilarityInfo from "../../components/Elements/Face/SimilarityInfo";
-import LogsPanel from "../../components/Elements/Face/LogsPanel";
-import FaceUpdateActions from "../../components/Elements/Face/FaceUpdateActions";
 import Webcam from "react-webcam";
+import EmbeddingCard from "../../components/Elements/Face/EmbeddingCard";
+import FacePreviewPanel from "../../components/Elements/Face/FacePreviewPanel";
+import FaceUpdateActions from "../../components/Elements/Face/FaceUpdateActions";
+import SimilarityInfo from "../../components/Elements/Face/SimilarityInfo";
+import StudentLayout from "../../components/Layouts/StudentLayout";
+import axiosInstance from "../../config/axios";
+import axiosFastAPI from "../../config/axiosFastAPI";
 
 // Icons
 import {
   CameraIcon,
-  ArrowPathIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
   DocumentDuplicateIcon,
 } from "@heroicons/react/24/outline";
 
 // ---------------- CAMERA BOX ----------------
 function CameraBox({ webcamRef, onCapture, loading }) {
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-4">
       <div className="relative">
-        <div className="w-80 h-80 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="w-full max-w-md h-64 sm:h-72 md:h-80 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 bg-gradient-to-br from-blue-50 to-indigo-100 mx-auto">
           <Webcam
             ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={{
-              facingMode: "user",
-              width: 1280,
-              height: 720,
-            }}
+            screenshotFormat="image/jpeg/jpg"
             className="w-full h-full object-cover"
             mirrored
           />
         </div>
-
-        {/* Camera frame decoration */}
-        <div className="absolute inset-0 border-2 border-white/30 rounded-2xl pointer-events-none"></div>
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
       </div>
 
       <button
@@ -54,11 +41,6 @@ function CameraBox({ webcamRef, onCapture, loading }) {
         <CameraIcon className="w-5 h-5" />
         {loading ? "Memproses..." : "Ambil Foto"}
       </button>
-
-      <div className="text-center text-sm text-gray-500 max-w-md">
-        <InformationCircleIcon className="w-4 h-4 inline mr-1" />
-        Pastikan wajah terlihat jelas dengan pencahayaan yang baik
-      </div>
     </div>
   );
 }
@@ -78,33 +60,10 @@ export default function UpdateFace() {
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState("camera");
   const [cameraKey, setCameraKey] = useState(Date.now());
+  const [successModal, setSuccessModal] = useState(false);
 
   const user = useSelector((state) => state.auth.user);
   const studentId = user?.uuid;
-
-  // Progress steps
-  const steps = [
-    {
-      id: 1,
-      name: "Ambil Foto",
-      status: stage === "camera" ? "current" : "complete",
-    },
-    {
-      id: 2,
-      name: "Verifikasi",
-      status:
-        stage === "preview"
-          ? "current"
-          : stage === "camera"
-          ? "upcoming"
-          : "complete",
-    },
-    {
-      id: 3,
-      name: "Konfirmasi",
-      status: similarity !== null ? "current" : "upcoming",
-    },
-  ];
 
   // LOG helper
   const log = (m) =>
@@ -128,14 +87,11 @@ export default function UpdateFace() {
   useEffect(() => {
     const fetchOld = async () => {
       try {
-        log("📡 Mengambil embedding lama...");
         const res = await axiosFastAPI.get("/summary");
 
         if (res.data?.[studentId]) {
           setOldEmbedding(res.data[studentId].centroid);
-          log("✅ Embedding lama ditemukan.");
         } else {
-          log("ℹ️ Tidak ada embedding lama.");
         }
       } catch (e) {
         log("❌ Gagal mengambil embedding lama.");
@@ -143,7 +99,6 @@ export default function UpdateFace() {
     };
 
     if (studentId) fetchOld();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
   // -------- EMBEDDING WITH FASTAPI (preview) --------
@@ -153,7 +108,6 @@ export default function UpdateFace() {
 
     try {
       setLoading(true);
-      log("🚀 Memulai proses embedding...");
 
       const blob = await fetch(src).then((r) => r.blob());
       const fd = new FormData();
@@ -166,7 +120,6 @@ export default function UpdateFace() {
 
       if (res.data.status !== "success") {
         toast.error("Embedding gagal");
-        log("❌ FastAPI mengembalikan status tidak sukses.");
         return;
       }
 
@@ -224,19 +177,14 @@ export default function UpdateFace() {
       // --- 1. Update foto di NodeJS ---
       const fdNode = new FormData();
       fdNode.append("face_image", blob, "face.jpg");
-
       await axiosInstance.patch(`/students/${studentId}`, fdNode, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      log("✅ Foto berhasil diperbarui di database.");
-
       // Ambil data student terbaru
       try {
         const fresh = await axiosInstance.get(`/students/${studentId}`);
         if (fresh.data?.face_image) {
           setOldFaceImage(fresh.data.face_image);
-          log("🔄 Data wajah terbaru berhasil diambil.");
         }
       } catch (e) {
         console.warn("Gagal refresh data student:", e.message);
@@ -259,7 +207,9 @@ export default function UpdateFace() {
         log("⚠️ Gagal memperbarui embedding, tetapi foto sudah terupdate.");
       }
 
-      toast.success("Wajah & embedding berhasil diperbarui!");
+      // TOAST BERHASIL - Ditambahkan di sini
+      setSuccessModal(true);
+
       resetFlow();
     } catch (err) {
       toast.error("Gagal update foto");
@@ -318,7 +268,7 @@ export default function UpdateFace() {
   // -------- UI --------
   return (
     <StudentLayout>
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto justify-center items-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={stage}
@@ -330,7 +280,7 @@ export default function UpdateFace() {
             {/* HEADER */}
             <div className="text-center space-y-3">
               <motion.h1
-                className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                className="text-3xl text-primary font-bold"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5 }}
@@ -343,63 +293,14 @@ export default function UpdateFace() {
               </p>
             </div>
 
-            {/* PROGRESS STEPS */}
-            {stage !== "camera" && (
-              <div className="max-w-2xl mx-auto">
-                <div className="flex items-center justify-between relative">
-                  {steps.map((step, index) => (
-                    <div
-                      key={step.id}
-                      className="flex flex-col items-center flex-1"
-                    >
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 z-10 ${
-                          step.status === "complete"
-                            ? "bg-green-500 border-green-500 text-white"
-                            : step.status === "current"
-                            ? "bg-blue-600 border-blue-600 text-white"
-                            : "bg-white border-gray-300 text-gray-500"
-                        }`}
-                      >
-                        {step.status === "complete" ? (
-                          <CheckCircleIcon className="w-5 h-5" />
-                        ) : (
-                          <span className="text-sm font-semibold">
-                            {step.id}
-                          </span>
-                        )}
-                      </div>
-                      <span
-                        className={`text-xs mt-2 font-medium ${
-                          step.status === "current"
-                            ? "text-blue-600"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                  ))}
-                  {/* Progress line */}
-                  <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 -z-10">
-                    <div
-                      className="h-full bg-blue-600 transition-all duration-500"
-                      style={{
-                        width:
-                          stage === "preview"
-                            ? "50%"
-                            : similarity !== null
-                            ? "100%"
-                            : "0%",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* MAIN CONTENT AREA */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div
+              className={
+                stage === "camera"
+                  ? "flex justify-center items-center min-h-[70vh]"
+                  : "grid grid-cols-1 lg:grid-cols-2 gap-8"
+              }
+            >
               {/* LEFT COLUMN - Camera & Preview */}
               <div className="space-y-8">
                 {/* CAMERA */}
@@ -407,7 +308,8 @@ export default function UpdateFace() {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100"
+                    className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100
+               flex items-center justify-center min-h-[60vh]"
                   >
                     <CameraBox
                       key={cameraKey}
@@ -443,7 +345,6 @@ export default function UpdateFace() {
                     </div>
                   </motion.div>
                 )}
-
                 {/* SIMILARITY INFO */}
                 {stage === "preview" && newEmbedding && (
                   <motion.div
@@ -504,21 +405,45 @@ export default function UpdateFace() {
                     />
                   </motion.div>
                 )}
-
-                {/* LOGS PANEL */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-gradient-to-br from-gray-900 to-blue-900 rounded-2xl shadow-2xl p-6"
-                >
-                  <LogsPanel logs={logs} />
-                </motion.div>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
+      {/* ---- SUCCESS MODAL ---- */}
+      <AnimatePresence>
+        {successModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white px-8 py-10 rounded-2xl shadow-2xl text-center max-w-sm w-full"
+            >
+              <CheckCircleIcon className="w-20 h-20 text-green-500 mx-auto mb-4" />
+
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                Berhasil Diperbarui!
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Wajah dan embedding Anda telah diperbarui di sistem.
+              </p>
+
+              <button
+                onClick={() => setSuccessModal(false)}
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+              >
+                OK
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </StudentLayout>
   );
 }

@@ -7,7 +7,7 @@ export default function FacePreviewPanel({ title, image, type = "old" }) {
   const borderColor = type === "old" ? "border-blue-200" : "border-green-200";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <p className="font-semibold text-gray-700 flex items-center gap-2">
         {type === "old" ? (
           <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
