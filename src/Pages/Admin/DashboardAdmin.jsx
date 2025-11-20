@@ -30,7 +30,7 @@ const DashboardAdmin = () => {
     recentActivities: [],
   });
   const [isLoading, setIsLoading] = useState(true);
-  const { isError } = useSelector((state) => state.auth);
+  const { user, isError } = useSelector((state) => state.auth);
 
   // Mock data untuk chart dan activities
   const weeklyStats = [65, 78, 82, 79, 85, 73, 88];
@@ -203,7 +203,7 @@ const DashboardAdmin = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-2xl lg:text-4xl font-bold bg-gradient-to-r from-[#1E2E4A] to-[#D4AF37] bg-clip-text text-transparent mb-3 lg:mb-4">
-                Selamat Datang
+                Selamat Datang {user?.name || "Admin"}
               </h1>
               <div className="hidden lg:flex items-center space-x-3 text-gray-500">
                 <CalendarIcon className="h-5 w-5" />

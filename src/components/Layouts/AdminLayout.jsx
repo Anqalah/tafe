@@ -17,6 +17,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { logout, reset } from "../../Features/authSlice";
 import LoadingModal from "../Elements/Modals/LoadingModal";
 import ErrorModal from "../Elements/Modals/ErrorModal";
+import Logo from "../../assets/logo/logo.png";
 
 const AdminLayout = ({ children }) => {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ const AdminLayout = ({ children }) => {
   const { user } = useSelector((state) => state.auth);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTopbarProfileOpen, setIsTopbarProfileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +42,8 @@ const AdminLayout = ({ children }) => {
         setIsCollapsed(true);
         setIsSidebarOpen(false);
       } else {
-        setIsCollapsed(false);
-        setIsSidebarOpen(true);
+        // Pada desktop, pertahankan state sidebar sesuai preferensi user
+        // Jangan reset state collapse saat resize
       }
     };
 
@@ -55,6 +57,9 @@ const AdminLayout = ({ children }) => {
     if (isMobile) {
       setIsSidebarOpen(false);
     }
+    // Tutup dropdown profile saat navigasi
+    setIsProfileOpen(false);
+    setIsTopbarProfileOpen(false);
   }, [location.pathname, isMobile]);
 
   const handleLogout = () => {
@@ -99,8 +104,23 @@ const AdminLayout = ({ children }) => {
       setIsSidebarOpen(!isSidebarOpen);
     } else {
       setIsCollapsed(!isCollapsed);
+      // Simpan preferensi user di localStorage
+      localStorage.setItem("sidebarCollapsed", !isCollapsed);
     }
   };
+
+  // Load sidebar preference on mount
+  useEffect(() => {
+    if (!isMobile) {
+      const savedPreference = localStorage.getItem("sidebarCollapsed");
+      if (savedPreference !== null) {
+        setIsCollapsed(JSON.parse(savedPreference));
+        setIsSidebarOpen(!JSON.parse(savedPreference));
+      } else {
+        setIsSidebarOpen(true);
+      }
+    }
+  }, [isMobile]);
 
   return (
     <div className="flex h-screen bg-gray-50/30 font-sans overflow-hidden">
@@ -140,17 +160,25 @@ const AdminLayout = ({ children }) => {
           {(!isCollapsed || isMobile) && (
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] rounded-lg flex items-center justify-center">
-                <AcademicCapIcon className="h-5 w-5 text-white" />
+                <img
+                  src={Logo}
+                  alt="logo"
+                  className="rounded-full  shadow-lg hover:scale-105 "
+                />
               </div>
               <span className="text-lg font-semibold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                MALEO
+                ADMIN PORTAL
               </span>
             </div>
           )}
 
           {isCollapsed && !isMobile && (
             <div className="w-8 h-8 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] rounded-lg flex items-center justify-center mx-auto">
-              <AcademicCapIcon className="h-5 w-5 text-white" />
+              <img
+                src={Logo}
+                alt="logo"
+                className="rounded-full  shadow-lg hover:scale-105 "
+              />
             </div>
           )}
 
@@ -181,12 +209,14 @@ const AdminLayout = ({ children }) => {
 
         {/* User Profile - Bottom */}
         <div className="absolute bottom-0 left-0 right-0 p-3 lg:p-4 border-t border-white/10">
-          <UserProfile
+          <SidebarUserProfile
             user={user}
             isCollapsed={isCollapsed && !isMobile}
-            isMobile={isMobile}
             isOpen={isProfileOpen}
-            toggle={() => setIsProfileOpen(!isProfileOpen)}
+            toggle={() => {
+              setIsProfileOpen(!isProfileOpen);
+              setIsTopbarProfileOpen(false);
+            }}
             onLogout={handleLogout}
             onEditProfile={() => navigate(`/admin/edit/${user?.uuid}`)}
           />
@@ -217,8 +247,10 @@ const AdminLayout = ({ children }) => {
                   <CalendarIcon className="h-4 w-4" />
                   <span>
                     {new Date().toLocaleDateString("id-ID", {
+                      weekday: "long",
                       day: "numeric",
-                      month: "short",
+                      month: "long",
+                      year: "numeric",
                     })}
                   </span>
                 </div>
@@ -226,13 +258,14 @@ const AdminLayout = ({ children }) => {
             </div>
 
             {/* Desktop Profile */}
-            <div className="hidden lg:block">
-              <UserProfile
+            <div className="hidden lg:block relative">
+              <TopbarUserProfile
                 user={user}
-                isCollapsed={false}
-                isMobile={false}
-                isOpen={isProfileOpen}
-                toggle={() => setIsProfileOpen(!isProfileOpen)}
+                isOpen={isTopbarProfileOpen}
+                toggle={() => {
+                  setIsTopbarProfileOpen(!isTopbarProfileOpen);
+                  setIsProfileOpen(false);
+                }}
                 onLogout={handleLogout}
                 onEditProfile={() => navigate(`/admin/edit/${user?.uuid}`)}
               />
@@ -241,7 +274,7 @@ const AdminLayout = ({ children }) => {
             {/* Mobile Profile Button */}
             <div className="lg:hidden">
               <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                onClick={() => setIsTopbarProfileOpen(!isTopbarProfileOpen)}
                 className="p-2 rounded-xl hover:bg-gray-100/80 transition-all duration-200"
               >
                 <UserCircleIcon className="h-6 w-6 text-gray-600" />
@@ -250,8 +283,8 @@ const AdminLayout = ({ children }) => {
           </div>
 
           {/* Mobile Profile Dropdown */}
-          {isProfileOpen && isMobile && (
-            <div className="lg:hidden bg-white/95 backdrop-blur-lg border-t border-gray-200/50 px-4 py-3">
+          {isTopbarProfileOpen && isMobile && (
+            <div className="lg:hidden bg-white/95 backdrop-blur-lg border-t border-gray-200/50 px-4 py-3 animate-fadeIn">
               <div className="flex items-center space-x-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] flex items-center justify-center">
                   {user?.foto_profile ? (
@@ -271,7 +304,10 @@ const AdminLayout = ({ children }) => {
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => navigate(`/admin/edit/${user?.uuid}`)}
+                  onClick={() => {
+                    navigate(`/admin/edit/${user?.uuid}`);
+                    setIsTopbarProfileOpen(false);
+                  }}
                   className="flex-1 flex items-center justify-center px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <PencilSquareIcon className="h-4 w-4 mr-2" />
@@ -327,14 +363,14 @@ const NavItem = ({ item, isCollapsed, isMobile, isActive, onClick }) => {
         </span>
       )}
 
-      {/* Active indicator */}
-      {isActive && !isMobile && (
+      {/* Active indicator - hanya tampil ketika sidebar tidak collapsed */}
+      {isActive && !isCollapsed && !isMobile && (
         <div className="absolute right-3 w-1.5 h-6 bg-[#D4AF37] rounded-full" />
       )}
 
       {/* Tooltip for collapsed state on desktop */}
       {isCollapsed && !isMobile && (
-        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
           {item.label}
         </div>
       )}
@@ -342,17 +378,14 @@ const NavItem = ({ item, isCollapsed, isMobile, isActive, onClick }) => {
   );
 };
 
-const UserProfile = ({
+const SidebarUserProfile = ({
   user,
   isCollapsed,
-  isMobile,
   isOpen,
   toggle,
   onLogout,
   onEditProfile,
 }) => {
-  if (isMobile) return null; // Mobile profile handled in topbar
-
   return (
     <div className="relative">
       <div
@@ -396,9 +429,87 @@ const UserProfile = ({
         )}
       </div>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Diperbaiki untuk state collapsed */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-10 border border-gray-200/50">
+        <div
+          className={`
+          absolute bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-50 border border-gray-200/50
+          ${
+            isCollapsed
+              ? "left-full bottom-0 ml-4 min-w-48" // Posisi untuk collapsed
+              : "bottom-full left-0 right-0 mb-2" // Posisi untuk expanded
+          }
+        `}
+        >
+          <button
+            className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50/80 transition-all duration-200 group"
+            onClick={onEditProfile}
+          >
+            <PencilSquareIcon className="h-4 w-4 mr-3 text-[#D4AF37] group-hover:scale-110 transition-transform" />
+            <span>Ubah Profil</span>
+          </button>
+          <button
+            className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-red-50/80 transition-all duration-200 group"
+            onClick={onLogout}
+          >
+            <ArrowLeftOnRectangleIcon className="h-4 w-4 mr-3 text-red-500 group-hover:scale-110 transition-transform" />
+            <span>Logout</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopbarUserProfile = ({
+  user,
+  isOpen,
+  toggle,
+  onLogout,
+  onEditProfile,
+}) => {
+  return (
+    <div className="relative">
+      <div
+        className="flex items-center cursor-pointer p-2 rounded-xl hover:bg-gray-100/80 transition-all duration-200 group"
+        onClick={toggle}
+      >
+        <div className="relative">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] flex items-center justify-center shadow-lg">
+            {user?.foto_profile ? (
+              <img
+                src={user.foto_profile}
+                alt="Profile"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/default_profile.png";
+                }}
+              />
+            ) : (
+              <UserCircleIcon className="h-6 w-6 text-white" />
+            )}
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+        </div>
+
+        <div className="ml-3 overflow-hidden flex-1 text-left">
+          <p className="font-semibold text-gray-800 truncate text-sm">
+            {user?.name}
+          </p>
+          <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+        </div>
+
+        <ChevronDownIcon
+          className={`ml-2 w-4 h-4 text-gray-600 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </div>
+
+      {/* Dropdown Menu - Tampil ke bawah */}
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-10 border border-gray-200/50 min-w-48">
           <button
             className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50/80 transition-all duration-200 group"
             onClick={onEditProfile}
