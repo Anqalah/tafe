@@ -1,57 +1,42 @@
 import {
   UserCircleIcon,
-  PencilSquareIcon,
   ArrowLeftOnRectangleIcon,
-} from "@heroicons/react/24/solid";
+  PencilSquareIcon,
+} from "@heroicons/react/24/outline";
 
-export default function TopbarAdmin({
-  user,
-  isOpen,
-  toggle,
-  onEditProfile,
-  onLogout,
-  isMobile,
-}) {
+export const TopbarAdmin = ({ user, onEditProfile, onLogout }) => {
   return (
-    <div className="relative">
-      <button
-        onClick={toggle}
-        className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-gray-100 transition"
-      >
-        <UserCircleIcon className="w-6 h-6 text-yellow-500" />
-        {!isMobile && (
-          <div className="flex flex-col items-start">
-            <span className="font-medium">{user?.email}</span>
-          </div>
-        )}
-      </button>
+    <div className="flex items-center gap-4">
+      <div className="text-right hidden sm:block">
+        <p className="text-sm font-medium text-gray-800">{user?.name}</p>
+        <p className="text-xs text-gray-500">{user?.email}</p>
+      </div>
 
-      {isOpen && (
-        <div
-          className="
-              absolute 
-              top-full mt-2 
-              right-0 
-              bg-white shadow-xl rounded-xl overflow-hidden z-50 min-w-[180px]
-            "
-        >
+      {/* Avatar */}
+      <div className="relative group">
+        <button className="flex items-center">
+          <UserCircleIcon className="h-10 w-10 text-gray-700 hover:text-gray-900 transition" />
+        </button>
+
+        {/* Dropdown */}
+        <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl border border-gray-200 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all">
           <button
             onClick={onEditProfile}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100"
+            className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
           >
-            <PencilSquareIcon className="w-5 h-5 text-yellow-500" />
-            <span>Ubah Profil</span>
+            <PencilSquareIcon className="h-5 w-5" />
+            Edit Profile
           </button>
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100"
+            className="w-full px-4 py-3 text-sm text-red-600 hover:bg-gray-50 flex items-center gap-3"
           >
-            <ArrowLeftOnRectangleIcon className="w-5 h-5 text-red-500" />
-            <span>Logout</span>
+            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+            Logout
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
-}
+};

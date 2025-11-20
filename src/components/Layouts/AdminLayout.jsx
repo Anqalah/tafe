@@ -19,6 +19,24 @@ import LoadingModal from "../Elements/Modals/LoadingModal";
 import ErrorModal from "../Elements/Modals/ErrorModal";
 import Logo from "../../assets/logo/logo.png";
 
+// 🔑 Path-to-label mapping (prefix-based)
+const adminPathMap = {
+  "/admin/dashboard": "Dashboard",
+  "/data/admin": "Data Admin", // akan match: /data/admin, /data/admin/add, /data/admin/abc
+  "/data/student": "Data Siswa",
+  "/data/absen": "Data Absen",
+  // Tambahkan route lain di sini sesuai kebutuhan
+  // Contoh: "/laporan": "Laporan", dsb.
+};
+
+// 🖼️ Icon mapping berdasarkan label
+const adminIcons = {
+  Dashboard: <ChartBarIcon className="h-5 w-5" />,
+  "Data Admin": <UserGroupIcon className="h-5 w-5" />,
+  "Data Siswa": <AcademicCapIcon className="h-5 w-5" />,
+  "Data Absen": <ClipboardDocumentListIcon className="h-5 w-5" />,
+};
+
 const AdminLayout = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -31,8 +49,18 @@ const AdminLayout = ({ children }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activeLabel, setActiveLabel] = useState("Dashboard");
 
-  // Handle responsive behavior
+  // 🔍 Set active label berdasarkan current path
+  useEffect(() => {
+    const matchedPath = Object.keys(adminPathMap).find((path) =>
+      location.pathname.startsWith(path)
+    );
+    const label = matchedPath ? adminPathMap[matchedPath] : "Dashboard";
+    setActiveLabel(label);
+  }, [location.pathname]);
+
+  // Handle window resize & sidebar state
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 1024;
@@ -41,9 +69,6 @@ const AdminLayout = ({ children }) => {
       if (mobile) {
         setIsCollapsed(true);
         setIsSidebarOpen(false);
-      } else {
-        // Pada desktop, pertahankan state sidebar sesuai preferensi user
-        // Jangan reset state collapse saat resize
       }
     };
 
@@ -52,15 +77,23 @@ const AdminLayout = ({ children }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Close sidebar when route changes on mobile
+  // Close sidebar & dropdowns on route change
   useEffect(() => {
     if (isMobile) {
       setIsSidebarOpen(false);
     }
-    // Tutup dropdown profile saat navigasi
     setIsProfileOpen(false);
     setIsTopbarProfileOpen(false);
   }, [location.pathname, isMobile]);
+
+  // Load saved collapse preference
+  useEffect(() => {
+    if (!isMobile) {
+      const saved = localStorage.getItem("sidebarCollapsed");
+      const collapsed = saved ? JSON.parse(saved) : false;
+      setIsCollapsed(collapsed);
+    }
+  }, [isMobile]);
 
   const handleLogout = () => {
     setIsLoading(true);
@@ -71,60 +104,21 @@ const AdminLayout = ({ children }) => {
     }, 1000);
   };
 
-  const navigation = [
-    {
-      path: "/admin/dashboard",
-      label: "Dashboard",
-      icon: <ChartBarIcon className="h-5 w-5" />,
-    },
-    {
-      path: "/data/admin",
-      label: "Data Admin",
-      icon: <UserGroupIcon className="h-5 w-5" />,
-    },
-    {
-      path: "/data/student",
-      label: "Data Siswa",
-      icon: <AcademicCapIcon className="h-5 w-5" />,
-    },
-    {
-      path: "/data/absen",
-      label: "Data Absen",
-      icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
-    },
-  ];
-
-  const getPageTitle = () => {
-    const currentNav = navigation.find((nav) => nav.path === location.pathname);
-    return currentNav ? currentNav.label : "Dashboard";
-  };
-
   const toggleSidebar = () => {
     if (isMobile) {
       setIsSidebarOpen(!isSidebarOpen);
     } else {
-      setIsCollapsed(!isCollapsed);
-      // Simpan preferensi user di localStorage
-      localStorage.setItem("sidebarCollapsed", !isCollapsed);
+      const newCollapsed = !isCollapsed;
+      setIsCollapsed(newCollapsed);
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(newCollapsed));
     }
   };
 
-  // Load sidebar preference on mount
-  useEffect(() => {
-    if (!isMobile) {
-      const savedPreference = localStorage.getItem("sidebarCollapsed");
-      if (savedPreference !== null) {
-        setIsCollapsed(JSON.parse(savedPreference));
-        setIsSidebarOpen(!JSON.parse(savedPreference));
-      } else {
-        setIsSidebarOpen(true);
-      }
-    }
-  }, [isMobile]);
+  const getPageTitle = () => activeLabel;
 
   return (
     <div className="flex h-screen bg-gray-50/30 font-sans overflow-hidden">
-      {/* Loading & Error Modals */}
+      {/* Modals */}
       <LoadingModal isOpen={isLoading} />
       <ErrorModal
         isOpen={!!error}
@@ -144,16 +138,18 @@ const AdminLayout = ({ children }) => {
       {/* Sidebar */}
       <aside
         className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        bg-gradient-to-b from-[#1E2E4A] to-[#0F1A2F]
-        text-white shadow-2xl lg:shadow-xl
-        transition-all duration-300 ease-in-out
-        ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }
-        ${isCollapsed && !isMobile ? "w-20" : "w-64 lg:w-64"}
-        ${isMobile ? "w-64" : ""}
-      `}
+          fixed lg:static inset-y-0 left-0 z-50
+          bg-gradient-to-b from-[#1E2E4A] to-[#0F1A2F]
+          text-white shadow-2xl lg:shadow-xl
+          transition-all duration-300 ease-in-out
+          ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }
+          ${isCollapsed && !isMobile ? "w-20" : "w-64 lg:w-64"}
+          ${isMobile ? "w-64" : ""}
+        `}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 lg:p-6 border-b border-white/10">
@@ -163,7 +159,7 @@ const AdminLayout = ({ children }) => {
                 <img
                   src={Logo}
                   alt="logo"
-                  className="rounded-full  shadow-lg hover:scale-105 "
+                  className="rounded-full shadow-lg hover:scale-105"
                 />
               </div>
               <span className="text-lg font-semibold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
@@ -177,7 +173,7 @@ const AdminLayout = ({ children }) => {
               <img
                 src={Logo}
                 alt="logo"
-                className="rounded-full  shadow-lg hover:scale-105 "
+                className="rounded-full shadow-lg hover:scale-105"
               />
             </div>
           )}
@@ -190,17 +186,19 @@ const AdminLayout = ({ children }) => {
           </button>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — Dinamis dari pathMap */}
         <nav className="mt-4 lg:mt-8 space-y-1 lg:space-y-2 px-3 lg:px-4">
-          {navigation.map((item) => (
+          {Object.entries(adminPathMap).map(([path, label]) => (
             <NavItem
-              key={item.path}
-              item={item}
+              key={path}
+              path={path}
+              label={label}
+              icon={adminIcons[label] || <ChartBarIcon className="h-5 w-5" />}
               isCollapsed={isCollapsed && !isMobile}
               isMobile={isMobile}
-              isActive={location.pathname === item.path}
+              isActive={label === activeLabel}
               onClick={() => {
-                navigate(item.path);
+                navigate(path);
                 if (isMobile) setIsSidebarOpen(false);
               }}
             />
@@ -229,7 +227,6 @@ const AdminLayout = ({ children }) => {
         <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm z-30 sticky top-0">
           <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4">
             <div className="flex items-center space-x-3 lg:space-x-4">
-              {/* Mobile Menu Button */}
               <button
                 onClick={toggleSidebar}
                 className="p-2 rounded-xl hover:bg-gray-100/80 transition-all duration-200 lg:hover:scale-105"
@@ -237,12 +234,10 @@ const AdminLayout = ({ children }) => {
                 <Bars3Icon className="h-5 w-5 lg:h-6 lg:w-6 text-gray-600" />
               </button>
 
-              {/* Page Title */}
               <div>
                 <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-[#1E2E4A] to-[#D4AF37] bg-clip-text text-transparent">
                   {getPageTitle()}
                 </h1>
-                {/* Mobile Date */}
                 <div className="lg:hidden flex items-center space-x-1 text-sm text-gray-500 mt-1">
                   <CalendarIcon className="h-4 w-4" />
                   <span>
@@ -334,7 +329,16 @@ const AdminLayout = ({ children }) => {
   );
 };
 
-const NavItem = ({ item, isCollapsed, isMobile, isActive, onClick }) => {
+// 🔹 NavItem Component
+const NavItem = ({
+  path,
+  label,
+  icon,
+  isCollapsed,
+  isMobile,
+  isActive,
+  onClick,
+}) => {
   return (
     <button
       onClick={onClick}
@@ -354,30 +358,29 @@ const NavItem = ({ item, isCollapsed, isMobile, isActive, onClick }) => {
           isActive ? "scale-110" : "scale-100"
         }`}
       >
-        {item.icon}
+        {icon}
       </div>
 
       {(!isCollapsed || isMobile) && (
-        <span className="ml-3 transition-opacity duration-200">
-          {item.label}
-        </span>
+        <span className="ml-3 transition-opacity duration-200">{label}</span>
       )}
 
-      {/* Active indicator - hanya tampil ketika sidebar tidak collapsed */}
+      {/* Active indicator — hanya saat sidebar expanded */}
       {isActive && !isCollapsed && !isMobile && (
         <div className="absolute right-3 w-1.5 h-6 bg-[#D4AF37] rounded-full" />
       )}
 
-      {/* Tooltip for collapsed state on desktop */}
+      {/* Tooltip untuk collapsed sidebar */}
       {isCollapsed && !isMobile && (
         <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
-          {item.label}
+          {label}
         </div>
       )}
     </button>
   );
 };
 
+// 🔹 Sidebar User Profile Dropdown
 const SidebarUserProfile = ({
   user,
   isCollapsed,
@@ -414,9 +417,11 @@ const SidebarUserProfile = ({
         {!isCollapsed && (
           <div className="ml-3 overflow-hidden flex-1 text-left">
             <p className="font-semibold text-white truncate text-sm">
-              {user?.name}
+              {user?.name || "Admin"}
             </p>
-            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+            <p className="text-xs text-gray-400 truncate">
+              {user?.email || "—"}
+            </p>
           </div>
         )}
 
@@ -429,17 +434,17 @@ const SidebarUserProfile = ({
         )}
       </div>
 
-      {/* Dropdown Menu - Diperbaiki untuk state collapsed */}
+      {/* Dropdown */}
       {isOpen && (
         <div
           className={`
-          absolute bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-50 border border-gray-200/50
-          ${
-            isCollapsed
-              ? "left-full bottom-0 ml-4 min-w-48" // Posisi untuk collapsed
-              : "bottom-full left-0 right-0 mb-2" // Posisi untuk expanded
-          }
-        `}
+            absolute bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-50 border border-gray-200/50
+            ${
+              isCollapsed
+                ? "left-full bottom-0 ml-4 min-w-48"
+                : "bottom-full left-0 right-0 mb-2"
+            }
+          `}
         >
           <button
             className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50/80 transition-all duration-200 group"
@@ -461,6 +466,7 @@ const SidebarUserProfile = ({
   );
 };
 
+// 🔹 Topbar User Profile Dropdown
 const TopbarUserProfile = ({
   user,
   isOpen,
@@ -495,9 +501,9 @@ const TopbarUserProfile = ({
 
         <div className="ml-3 overflow-hidden flex-1 text-left">
           <p className="font-semibold text-gray-800 truncate text-sm">
-            {user?.name}
+            {user?.name || "Admin"}
           </p>
-          <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+          <p className="text-xs text-gray-600 truncate">{user?.email || "—"}</p>
         </div>
 
         <ChevronDownIcon
@@ -507,7 +513,7 @@ const TopbarUserProfile = ({
         />
       </div>
 
-      {/* Dropdown Menu - Tampil ke bawah */}
+      {/* Dropdown ke bawah */}
       {isOpen && (
         <div className="absolute top-full right-0 mt-2 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl overflow-hidden z-10 border border-gray-200/50 min-w-48">
           <button
@@ -530,7 +536,7 @@ const TopbarUserProfile = ({
   );
 };
 
-// Helper component for Calendar Icon
+// 🔹 Calendar Icon Helper
 const CalendarIcon = ({ className = "h-5 w-5" }) => (
   <svg
     className={className}

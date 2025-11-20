@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../config/axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { InputForm } from "../Elements/Input";
+import { InputForm } from "../Elements/Input/index";
 import Button from "../Elements/Button";
 import { CameraIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 

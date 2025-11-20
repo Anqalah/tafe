@@ -13,7 +13,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../config/axios";
 import Button from "../Elements/Button";
-import { InputForm } from "../Elements/Input";
+import InputForm from "../Elements/Input";
 import Label from "../Elements/Input/Label";
 
 const FormEditDataAdmin = () => {
