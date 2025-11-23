@@ -27,15 +27,10 @@ export const FormAddAdmin = () => {
   const [password, setPassword] = useState("");
   const [confPassword, setConfPassword] = useState("");
   const [error, setError] = useState("");
-
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
-
-  // Untuk Cropper
   const [isCropOpen, setIsCropOpen] = useState(false);
   const [rawImage, setRawImage] = useState(null);
-
-  // Modal
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isErrorOpen, setIsErrorOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -324,9 +319,8 @@ export const FormAddAdmin = () => {
                   <Button
                     type="button"
                     onClick={handleSubmitAdmin}
-                    className="w-full bg-gradient-to-r from-[#D4AF37] to-[#E8C44F] hover:from-[#C19C30] hover:to-[#D4AF37] text-[#2A4365] py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                    className="w-full bg-gradient-to-r from-[#D4AF37] to-[#E8C44F] hover:from-[#C19C30] hover:to-[#D4AF37] text-[#2A4365] py-2 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                   >
-                    <User className="w-5 h-5" />
                     <span>Daftarkan Admin</span>
                   </Button>
                 </div>
@@ -335,10 +329,6 @@ export const FormAddAdmin = () => {
           </div>
         </div>
       </div>
-
-      {/* =========================== */}
-      {/*     MODALS (Semua)          */}
-      {/* =========================== */}
 
       {/* Cropper */}
       <CropperModal

@@ -9,12 +9,17 @@ import {
   Lock,
   Save,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../config/axios";
 import Button from "../Elements/Button";
 import InputForm from "../Elements/Input";
 import Label from "../Elements/Input/Label";
+import SuccessModal from "../Elements/Modals/SuccessModal";
+import ErrorModal from "../Elements/Modals/ErrorModal";
+import ConfirmDialog from "../Elements/Modals/ConfirmDialog";
+import LoadingModal from "../Elements/Modals/LoadingModal";
+import CropperModal from "../Elements/Modals/CropperModal";
 
 const FormEditDataAdmin = () => {
   const [formData, setFormData] = useState({
@@ -25,13 +30,20 @@ const FormEditDataAdmin = () => {
     confPassword: "",
     profileImage: null,
     previewImage: "",
+    removePhoto: false,
   });
-  const [msg, setMsg] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageURL, setTempImageURL] = useState("");
+  const [originalPhoto, setOriginalPhoto] = useState(null);
   const navigate = useNavigate();
   const { id } = useParams();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const getAdminById = async () => {
@@ -47,12 +59,11 @@ const FormEditDataAdmin = () => {
           password: "",
           confPassword: "",
           profileImage: null,
-          previewImage: adminData.foto_profile || adminData.profileImage || "",
+          previewImage: adminData.foto_profile || "",
         });
+        setOriginalPhoto(adminData.foto_profile || null);
       } catch (error) {
-        if (error.response) {
-          setMsg(error.response.data.msg || "Gagal memuat data admin");
-        }
+        setShowError(true);
       } finally {
         setIsFetching(false);
       }
@@ -72,75 +83,92 @@ const FormEditDataAdmin = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validasi ukuran file (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      setMsg("Ukuran file maksimal 2MB");
+      setShowError(true);
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageURL(reader.result);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const onCropDone = (croppedFile) => {
+    const preview = URL.createObjectURL(croppedFile);
     setFormData({
       ...formData,
-      profileImage: file,
-      previewImage: URL.createObjectURL(file),
+      profileImage: croppedFile,
+      previewImage: preview,
+      removePhoto: false,
     });
-    setMsg(""); // Clear error jika ada
+    setShowCropper(false);
+    setTempImageURL("");
+  };
+
+  const onCropCancel = () => {
+    setShowCropper(false);
+    setTempImageURL("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const updateAdmin = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setMsg("");
 
-    // Validasi password jika diisi
     if (formData.password && formData.password !== formData.confPassword) {
-      setMsg("Password dan konfirmasi password tidak sama");
-      setIsLoading(false);
+      setShowError(true);
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirm(false);
+    setShowLoading(true);
 
     try {
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("hp", formData.hp);
       formDataToSend.append("email", formData.email);
-      formDataToSend.append("role", "Admin");
 
-      // Hanya kirim password jika diisi
+      // Password
       if (formData.password && formData.password !== "") {
         formDataToSend.append("password", formData.password);
         formDataToSend.append("confPassword", formData.confPassword);
       }
 
+      // ✅ Hanya kirim removePhoto jika benar-benar diinginkan
+      if (formData.removePhoto) {
+        formDataToSend.append("removePhoto", "true");
+      }
+
+      // ✅ Hanya kirim foto jika ada file baru
       if (formData.profileImage) {
         formDataToSend.append("foto", formData.profileImage);
       }
 
       await axiosInstance.patch(`/admins/${id}`, formDataToSend, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setMsg("success:Data admin berhasil diperbarui!");
-
-      // Redirect setelah 2 detik
-      setTimeout(() => {
-        navigate("/data/admin");
-      }, 2000);
+      setShowLoading(false);
+      setShowSuccess(true);
     } catch (error) {
-      if (error.response) {
-        setMsg(error.response.data.msg || "Terjadi kesalahan server");
-      }
-    } finally {
-      setIsLoading(false);
+      setShowLoading(false);
+      console.error("Update error:", error);
+      setShowError(true);
     }
   };
 
-  const resetPasswordFields = () => {
+  const handleRemovePhoto = () => {
     setFormData({
       ...formData,
-      password: "",
-      confPassword: "",
+      previewImage: "",
+      profileImage: null,
+      removePhoto: true,
     });
   };
 
@@ -188,66 +216,7 @@ const FormEditDataAdmin = () => {
               </div>
             </div>
           </div>
-
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-            <div className="w-2 h-2 bg-[#D4AF37] rounded-full"></div>
-            <span className="text-[#2A4365] font-medium">Edit Data Admin</span>
-            <div className="w-8 h-px bg-gray-300"></div>
-            <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-            <span className="text-gray-400">Preview</span>
-          </div>
         </div>
-
-        {/* Success/Error Alert */}
-        {msg && (
-          <div
-            className={`mb-6 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-300 ${
-              msg.startsWith("success:")
-                ? "bg-green-50 border border-green-200"
-                : "bg-red-50 border border-red-200"
-            }`}
-          >
-            <div
-              className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                msg.startsWith("success:") ? "bg-green-500" : "bg-red-500"
-              }`}
-            >
-              {msg.startsWith("success:") ? (
-                <svg
-                  className="w-3 h-3 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-3 h-3 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
-            </div>
-            <p
-              className={`text-sm flex-1 ${
-                msg.startsWith("success:") ? "text-green-700" : "text-red-700"
-              }`}
-            >
-              {msg.startsWith("success:") ? msg.replace("success:", "") : msg}
-            </p>
-          </div>
-        )}
 
         {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-200/60 overflow-hidden">
@@ -280,7 +249,6 @@ const FormEditDataAdmin = () => {
                         )}
                       </div>
 
-                      {/* Edit Badge */}
                       {formData.previewImage && (
                         <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#D4AF37] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
                           <Camera className="w-3 h-3 text-white" />
@@ -298,6 +266,7 @@ const FormEditDataAdmin = () => {
                         accept="image/*"
                         onChange={handleImageChange}
                         className="hidden"
+                        ref={fileInputRef}
                       />
 
                       <label
@@ -308,16 +277,10 @@ const FormEditDataAdmin = () => {
                         {formData.previewImage ? "Ganti Foto" : "Pilih Foto"}
                       </label>
 
-                      {formData.previewImage && (
+                      {formData.previewImage && !formData.removePhoto && (
                         <button
                           type="button"
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              previewImage: "",
-                              profileImage: null,
-                            })
-                          }
+                          onClick={handleRemovePhoto}
                           className="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-xl border border-red-200 hover:bg-red-100 transition-all duration-200 font-medium"
                         >
                           Hapus Foto
@@ -339,7 +302,6 @@ const FormEditDataAdmin = () => {
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-[#2A4365]/10"></div>
 
               {/* Form Inputs Section */}
@@ -428,23 +390,12 @@ const FormEditDataAdmin = () => {
 
               {/* Password Update Section */}
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[#2A4365]">
-                    <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full"></div>
-                    <Label className="text-base font-semibold">
-                      Perbarui Password
-                    </Label>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={resetPasswordFields}
-                    className="text-sm text-[#2A4365]/60 hover:text-[#D4AF37] transition-colors font-medium"
-                  >
-                    Reset
-                  </button>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm text-[#2A4365]/80">
+                    <strong>Catatan:</strong> Biarkan kolom password kosong jika
+                    tidak ingin mengubah password.
+                  </p>
                 </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Password */}
                   <div className="space-y-2">
@@ -486,13 +437,6 @@ const FormEditDataAdmin = () => {
                     />
                   </div>
                 </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-sm text-[#2A4365]/80">
-                    <strong>Catatan:</strong> Biarkan kolom password kosong jika
-                    tidak ingin mengubah password.
-                  </p>
-                </div>
               </div>
 
               {/* Action Buttons */}
@@ -502,41 +446,52 @@ const FormEditDataAdmin = () => {
                   disabled={isLoading}
                   className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#E8C44F] hover:from-[#C19C30] hover:to-[#D4AF37] text-[#2A4365] py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group"
                 >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-[#2A4365] border-t-transparent rounded-full animate-spin"></div>
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      <span>Simpan Perubahan</span>
-                    </>
-                  )}
+                  <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span>Simpan Perubahan</span>
                 </Button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="px-8 py-4 bg-white text-[#2A4365] border border-[#2A4365]/20 rounded-2xl font-semibold hover:bg-[#2A4365]/5 hover:border-[#2A4365]/30 transition-all duration-300"
-                >
-                  Batal
-                </button>
               </div>
             </form>
           </div>
         </div>
-
-        {/* Brand Footer */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#2A4365]/5 rounded-full">
-            <div className="w-2 h-2 bg-[#D4AF37] rounded-full"></div>
-            <span className="text-sm text-[#2A4365]/60 font-medium">
-              Sistem Administrasi Premium
-            </span>
-          </div>
-        </div>
       </div>
+
+      {/* Modals */}
+      <SuccessModal
+        isOpen={showSuccess}
+        onClose={() => {
+          setShowSuccess(false);
+          navigate("/data/admin");
+        }}
+        title="Berhasil!"
+        message="Data admin berhasil diperbarui."
+      />
+
+      <ErrorModal
+        isOpen={showError}
+        onClose={() => setShowError(false)}
+        title="Gagal Memperbarui"
+        message="Gagal memperbarui data admin. Silakan cek koneksi atau data input."
+      />
+
+      <ConfirmDialog
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleConfirmSave}
+        title="Konfirmasi Simpan"
+        message={`Apakah Anda yakin ingin menyimpan perubahan untuk admin "${formData.name}"?`}
+        confirmText="Ya, Simpan"
+        cancelText="Batal"
+        variant="pending"
+      />
+
+      <LoadingModal isOpen={showLoading} message="Menyimpan data admin..." />
+
+      <CropperModal
+        isOpen={showCropper}
+        image={tempImageURL}
+        onClose={onCropCancel}
+        onCropDone={onCropDone}
+      />
     </div>
   );
 };
