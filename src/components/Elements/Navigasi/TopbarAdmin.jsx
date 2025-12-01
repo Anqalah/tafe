@@ -20,13 +20,15 @@ export const TopbarAdmin = ({ user, onEditProfile, onLogout }) => {
 
         {/* Dropdown */}
         <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl border border-gray-200 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all">
-          <button
-            onClick={onEditProfile}
-            className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-          >
-            <PencilSquareIcon className="h-5 w-5" />
-            Edit Profile
-          </button>
+          <Link to={`admin/edit/${user.uuid}`}>
+            <button
+              onClick={onEditProfile}
+              className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+            >
+              <PencilSquareIcon className="h-5 w-5" />
+              Edit Profile
+            </button>
+          </Link>
 
           <button
             onClick={onLogout}

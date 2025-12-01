@@ -1,4 +1,3 @@
-// FormLogin.jsx (Fixed Version)
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -10,48 +9,64 @@ const FormLogin = () => {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, isSuccess, isError, message } = useSelector(
     (state) => state.auth
   );
-
-  // Gunakan useModal hook
   const { Modal, showModal, hideModal } = useModal();
+  const [autoRedirectTimer, setAutoRedirectTimer] = useState(null);
 
   useEffect(() => {
-    console.log("Auth state changed:", { user, isSuccess, isError, message }); // Debug log
+    return () => {
+      if (autoRedirectTimer) {
+        clearTimeout(autoRedirectTimer);
+      }
+    };
+  }, [autoRedirectTimer]);
 
-    if (user && isSuccess) {
-      console.log("Showing success modal"); // Debug log
-      showModal({
-        type: "success",
-        title: "Login Berhasil!",
-        message: "Login berhasil! Mengarahkan ke dashboard...",
-        confirmText: "Lanjutkan",
-        onConfirm: () => {
-          hideModal();
-          const dashboardRoutes = {
-            Admin: "/admin/dashboard",
-            Student: "/student/dashboard",
-          };
-          navigate(dashboardRoutes[user.role] || "/");
-          dispatch(reset());
-        },
-      });
-    }
-
-    if (isError) {
-      console.log("Showing error modal:", message); // Debug log
+  useEffect(() => {
+    if (isError && typeof message === "string" && message.trim() !== "") {
       setIsSubmitting(false);
       showModal({
         type: "error",
         title: "Login Gagal",
-        message: message || "Terjadi kesalahan saat login",
+        message: message,
         confirmText: "Coba Lagi",
-        onConfirm: hideModal,
+        onConfirm: () => {
+          hideModal();
+          dispatch(reset());
+        },
       });
+      return;
+    }
+    if (user && isSuccess) {
+      console.log("Showing success modal");
+      setIsSubmitting(false);
+      const redirectToDashboard = () => {
+        hideModal();
+        const dashboardRoutes = {
+          Admin: "/admin/dashboard",
+          Student: "/student/dashboard",
+        };
+        navigate(dashboardRoutes[user.role] || "/");
+        dispatch(reset());
+      };
+      const timer = setTimeout(() => {
+        redirectToDashboard();
+      }, 5000);
+      setAutoRedirectTimer(timer);
+      showModal({
+        type: "success",
+        title: "Login Berhasil!",
+        message: `Anda akan dialihkan ke dashboard.`,
+        confirmText: "Lanjutkan Sekarang",
+        onConfirm: () => {
+          clearTimeout(timer);
+          redirectToDashboard();
+        },
+      });
+      dispatch(reset());
     }
   }, [
     user,
@@ -70,37 +85,47 @@ const FormLogin = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
-    // Validasi input
     if (!credentials.email || !credentials.password) {
       showModal({
         type: "warning",
         title: "Data Tidak Lengkap",
-        message: "Harap isi email dan password dengan benar.",
+        message: "Email dan password harus diisi.",
         confirmText: "Mengerti",
         onConfirm: hideModal,
       });
       return;
     }
-
     setIsSubmitting(true);
     try {
-      // Tampilkan loading modal
       showModal({
         type: "loading",
         title: "Memproses Login",
         message: "Sedang memverifikasi data...",
       });
-
       const result = await dispatch(login(credentials)).unwrap();
-      console.log("Login result:", result); // Debug log
-
-      // Loading modal akan otomatis tertutup oleh useEffect ketika isSuccess true
     } catch (error) {
-      console.error("Login error:", error); // Debug log
-      // Error modal akan ditampilkan oleh useEffect ketika isError true
-    } finally {
-      // Jangan set isSubmitting false di sini karena useEffect sudah menanganinya
+      hideModal();
+      setIsSubmitting(false);
+      let errorMessage = "Login gagal. Silakan coba lagi.";
+
+      if (error?.response?.data?.msg) {
+        errorMessage = error.response.data.msg; // <-- Sama seperti di slice!
+      } else if (error?.response?.statusText) {
+        errorMessage = error.response.statusText;
+      } else if (error?.request) {
+        errorMessage = "Tidak dapat terhubung ke server.";
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      showModal({
+        type: "error",
+        title: "Login Gagal",
+        message: errorMessage,
+        confirmText: "Coba Lagi",
+        onConfirm: hideModal,
+      });
     }
   };
 
@@ -165,8 +190,6 @@ const FormLogin = () => {
           )}
         </button>
       </form>
-
-      {/* Modal Component - PASTIKAN INI DIMASUKKAN */}
       <Modal />
     </AuthLayout>
   );

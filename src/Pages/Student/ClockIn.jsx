@@ -14,33 +14,18 @@ const ClockIn = () => {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
-
   const [message, setMessage] = useState("");
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertType, setAlertType] = useState("success");
   const [isLoading, setIsLoading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-
   const [user, setUser] = useState(null);
-  const [verification, setVerification] = useState(null); // hasil dari FastAPI /verify
+  const [verification, setVerification] = useState(null);
 
   const { user: authUser } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-
-  // ---------------- HELPER URL FOTO EMBEDDING ----------------
-  const getFaceImageURL = (path) => {
-    if (!path) return null;
-    let clean = String(path).replace(/\\/g, "/");
-    if (clean.startsWith("http")) return clean;
-
-    const base = (
-      axiosInstance.defaults.baseURL || "http://localhost:8000"
-    ).replace(/\/+$/, "");
-    clean = clean.replace(/^\/+/, "");
-    return `${base}/${clean}`;
-  };
 
   // ---------------- INIT USER & KAMERA ----------------
   useEffect(() => {
@@ -86,35 +71,23 @@ const ClockIn = () => {
       const formData = new FormData();
       formData.append("studentId", studentId);
       formData.append("file", imageBlob, "face.png");
-      formData.append("liveness", "true"); // string "true" untuk Form(bool)
+      formData.append("liveness", "true");
 
       const res = await axiosFastAPI.post("/verify", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 90000,
       });
 
-      console.log("Verification result:", res.data);
-      // ⬆️ di sini biarkan match true/false dikembalikan apa adanya
       return res.data;
     } catch (err) {
       console.error("Verification error (axios):", err);
-
-      if (err.response && err.response.data) {
-        console.error("Server response:", err.response.data);
-        const msg =
-          err.response.data.reason ||
-          err.response.data.error ||
-          "Verifikasi gagal";
+      if (err.response?.data) {
+        const msg = err.response.data.reason || "Verifikasi gagal";
         toast.error(msg);
-        throw new Error(
-          err.response.data.reason ||
-            err.response.data.detail ||
-            "Verifikasi wajah gagal, coba lagi."
-        );
+        throw new Error(err.response.data.detail || "Verifikasi wajah gagal.");
       }
-
       toast.error("Koneksi ke server verifikasi gagal.");
-      throw new Error("Verifikasi wajah gagal, coba lagi.");
+      throw new Error("Verifikasi wajah gagal.");
     }
   };
 
@@ -145,12 +118,12 @@ const ClockIn = () => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
 
-    if (!video.videoWidth) {
+    if (!video.videoWidth || !video.videoHeight) {
       toast.error("Kamera belum aktif. Coba lagi.");
       return;
     }
 
-    // capture frame
+    // Capture frame
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
@@ -158,7 +131,7 @@ const ClockIn = () => {
     const imageData = canvas.toDataURL("image/png");
     setImageSrc(imageData);
 
-    // helper location -> promise
+    // Get location
     const getLocation = () =>
       new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject);
@@ -168,27 +141,25 @@ const ClockIn = () => {
       setIsLoading(true);
       setMessage("Memverifikasi wajah...");
 
-      // ambil lokasi
+      // Location
       try {
         const pos = await getLocation();
         setLatitude(pos.coords.latitude);
         setLongitude(pos.coords.longitude);
       } catch (locErr) {
-        console.error("Location error:", locErr);
         toast.error("Tidak dapat mengambil lokasi");
       }
 
-      // convert ke blob untuk dikirim
+      // Blob
       const blob = await (await fetch(imageData)).blob();
 
-      // verifikasi ke FastAPI
+      // Verify to FastAPI
       const verificationResult = await verifyFace(blob, authUser?.uuid);
       setVerification({
         ...verificationResult,
-        imageBlob: blob, // simpan supaya nanti dipakai kirim ke Node
+        imageBlob: blob, // for Node later
       });
 
-      // tampilkan preview modal dengan foto + hasil siamese
       setShowPreviewModal(true);
     } catch (err) {
       console.error("Capture/verify error:", err);
@@ -199,13 +170,12 @@ const ClockIn = () => {
     }
   };
 
-  // ---------------- KONFIRMASI CLOCK-IN DARI PREVIEW ----------------
+  // ---------------- KONFIRMASI CLOCK-IN ----------------
   const handleConfirmClockIn = async () => {
-    if (!verification || !verification.match) {
+    if (!verification?.match) {
       toast.error("Wajah belum terverifikasi, ambil foto ulang.");
       return;
     }
-
     if (!latitude || !longitude || !imageSrc) {
       toast.error("Lokasi atau foto belum tersedia. Ambil foto ulang.");
       return;
@@ -215,7 +185,7 @@ const ClockIn = () => {
       setIsLoading(true);
       setMessage("Menyimpan presensi...");
 
-      const result = await clockInToNode({
+      await clockInToNode({
         studentId: verification.studentId,
         latitude,
         longitude,
@@ -224,30 +194,22 @@ const ClockIn = () => {
       });
 
       toast.success("Presensi berhasil!");
-      setAlertMessage(result.msg || "Presensi berhasil!");
-      setAlertType("success");
       setShowPreviewModal(false);
-
-      setTimeout(() => {
-        navigate(`/attendances/clockin-results/${authUser?.id}`);
-      }, 1200);
+      setTimeout(() => navigate(`/attendances/clockin-results/${authUser?.id}`), 1200);
     } catch (err) {
       console.error("Clock-in error:", err);
-      toast.error(err.message);
-      setAlertMessage(err.message || "Terjadi kesalahan saat presensi.");
-      setAlertType("error");
+      toast.error(err.message || "Terjadi kesalahan saat presensi.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ---------------- RETAKE FOTO ----------------
+  // ---------------- RETAKE ----------------
   const handleClosePreviewModal = () => {
     setShowPreviewModal(false);
     setImageSrc(null);
     setLatitude(null);
     setLongitude(null);
-    setMessage("");
     setVerification(null);
     startVideo();
   };
@@ -265,9 +227,7 @@ const ClockIn = () => {
 
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
           <CameraIcon className="w-5 h-5 text-amber-600" />
-          <span>
-            Pastikan wajah terlihat jelas dengan pencahayaan yang cukup.
-          </span>
+          <span>Pastikan wajah terlihat jelas dengan pencahayaan yang cukup.</span>
         </div>
 
         {!isLoading && !imageSrc && (
@@ -281,7 +241,6 @@ const ClockIn = () => {
                 className="w-full h-full object-cover"
               />
             </div>
-
             <button
               type="button"
               onClick={captureImageAndLocation}
@@ -293,17 +252,13 @@ const ClockIn = () => {
           </div>
         )}
 
-        {/* PREVIEW MODAL: foto embedding + foto clock-in + hasil siamese */}
+        {/* ✅ PreviewModal tanpa embeddingImage prop — semua dari verification */}
         <div className="relative z-[9999]">
           <PreviewModal
             show={showPreviewModal}
             type="clockIn"
             imageSrc={imageSrc}
-            embeddingImage={getFaceImageURL(user?.face_image)}
-            latitude={latitude}
-            longitude={longitude}
-            isLoading={isLoading}
-            verification={verification} // <— ini
+            verification={verification}
             onConfirm={handleConfirmClockIn}
             onRetake={handleClosePreviewModal}
           />

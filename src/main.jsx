@@ -89,7 +89,7 @@ const router = createBrowserRouter([
     element: <DataAdmin />,
   },
   {
-    path: "/data/edit/:id",
+    path: "/admin/edit/:id",
     element: <EditAdmin />,
   },
   {

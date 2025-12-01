@@ -14,12 +14,19 @@ import {
   GraduationCap,
   Home,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../config/axios";
 import Button from "../Elements/Button";
 import { InputForm, SelectForm, TextareaForm } from "../Elements/Input/index";
 import Label from "../Elements/Input/Label";
+
+// ✅ Import semua modal
+import SuccessModal from "../Elements/Modals/SuccessModal";
+import ErrorModal from "../Elements/Modals/ErrorModal";
+import LoadingModal from "../Elements/Modals/LoadingModal";
+import CropperModal from "../Elements/Modals/CropperModal";
+import ConfirmDialog from "../Elements/Modals/ConfirmDialog";
 
 const FormEditDataStudent = () => {
   const [formData, setFormData] = useState({
@@ -37,32 +44,25 @@ const FormEditDataStudent = () => {
     previewImage: "",
   });
 
-  const [msg, setMsg] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageURL, setTempImageURL] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
 
   const navigate = useNavigate();
   const { id } = useParams();
-
-  const bidangOptions = [
-    { value: "Konstruksi", label: "Konstruksi" },
-    { value: "Perikanan", label: "Perikanan" },
-    { value: "Pertanian", label: "Pertanian" },
-    { value: "Peternakan", label: "Peternakan" },
-    { value: "Pengolahan Makananan", label: "Pengolahan Makananan" },
-    { value: "Perawat Lansia", label: "Perawat Lansia" },
-  ];
-
-  const kelasOptions = [
-    { value: "A", label: "Kelas A" },
-    { value: "B", label: "Kelas B" },
-  ];
+  const fileInputRef = useRef(null);
 
   const jkOptions = [
     { value: "L", label: "Laki-laki" },
     { value: "P", label: "Perempuan" },
   ];
 
+  // 🔁 Ambil data siswa
   useEffect(() => {
     const getStudentById = async () => {
       try {
@@ -85,9 +85,8 @@ const FormEditDataStudent = () => {
           previewImage: studentData.foto_profile || "",
         });
       } catch (error) {
-        if (error.response) {
-          setMsg(error.response.data.msg || "Gagal memuat data siswa");
-        }
+        setModalMessage("Gagal memuat data siswa. Silakan coba lagi.");
+        setShowError(true);
       } finally {
         setIsFetching(false);
       }
@@ -95,78 +94,134 @@ const FormEditDataStudent = () => {
     getStudentById();
   }, [id]);
 
+  // 📝 Handle perubahan input
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
+  // 📤 Handle pilih foto (buka cropper)
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validasi ukuran file (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      setMsg("Ukuran file maksimal 2MB");
+      setModalMessage("Ukuran file maksimal 2MB");
+      setShowError(true);
       return;
     }
 
-    setFormData({
-      ...formData,
-      profileImage: file,
-      previewImage: URL.createObjectURL(file),
-    });
-    setMsg("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageURL(reader.result);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const updateStudent = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMsg("");
+  // ✅ Hasil cropping
+  const onCropDone = (croppedFile) => {
+    const preview = URL.createObjectURL(croppedFile);
+    setFormData({
+      ...formData,
+      profileImage: croppedFile,
+      previewImage: preview,
+    });
+    setShowCropper(false);
+    setTempImageURL("");
+  };
 
-    // Validasi password jika diisi
+  // ❌ Batalkan cropping
+  const onCropCancel = () => {
+    setShowCropper(false);
+    setTempImageURL("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // 🗑️ Hapus foto
+  const handleRemovePhoto = () => {
+    setFormData({
+      ...formData,
+      previewImage: "",
+      profileImage: null,
+    });
+  };
+
+  // 📤 Submit form → tampilkan konfirmasi
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
     if (formData.password && formData.password !== formData.confPassword) {
-      setMsg("Password dan konfirmasi password tidak sama");
-      setIsLoading(false);
+      setModalMessage("Password dan konfirmasi tidak sama");
+      setShowError(true);
       return;
     }
 
+    setShowConfirm(true);
+  };
+
+  // ✅ Konfirmasi & eksekusi update
+  const handleConfirmSave = async () => {
+    setShowConfirm(false);
+    setShowLoading(true);
+
     try {
-      const formDataToSend = new FormData();
-      for (const key in formData) {
-        if (formData[key] && key !== "previewImage" && key !== "confPassword") {
-          // Hanya kirim password jika diisi
-          if (key === "password" && !formData.password) continue;
-          formDataToSend.append(key, formData[key]);
-        }
+      const fd = new FormData();
+      fd.append("name", formData.name);
+      fd.append("jk", formData.jk);
+      fd.append("umur", formData.umur);
+      fd.append("alamat", formData.alamat);
+      fd.append("hp", formData.hp);
+      fd.append("bidang", formData.bidang);
+      fd.append("kelas", formData.kelas);
+      fd.append("email", formData.email);
+
+      // Password hanya dikirim jika diisi
+      if (formData.password) {
+        fd.append("password", formData.password);
+        fd.append("confPassword", formData.confPassword);
       }
 
-      await axiosInstance.patch(`/students/${id}`, formDataToSend, {
+      // File foto
+      if (formData.profileImage) {
+        fd.append("foto", formData.profileImage);
+      }
+
+      // Kirim request
+      await axiosInstance.patch(`/students/${id}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setMsg("success:Data siswa berhasil diperbarui!");
-
-      // Redirect setelah 2 detik
-      setTimeout(() => {
-        navigate("/data/student");
-      }, 2000);
+      setModalMessage("Data siswa berhasil diperbarui.");
+      setShowSuccess(true);
     } catch (error) {
-      if (error.response) {
-        setMsg(error.response.data.msg || "Terjadi kesalahan server");
-      }
+      const msg =
+        error.response?.data?.msg ||
+        error.response?.data?.message ||
+        "Gagal memperbarui data siswa. Silakan coba lagi.";
+      setModalMessage(msg);
+      setShowError(true);
     } finally {
-      setIsLoading(false);
+      setShowLoading(false);
     }
   };
 
-  const resetPasswordFields = () => {
-    setFormData({
-      ...formData,
-      password: "",
-      confPassword: "",
-    });
+  // 🚪 Tutup semua modal
+  const closeModal = () => {
+    setShowConfirm(false);
+    setShowSuccess(false);
+    setShowError(false);
+    setShowLoading(false);
+    setShowCropper(false);
   };
 
+  // 🔁 Setelah sukses → redirect
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    navigate("/data/student");
+  };
+
+  // ⏳ Loading state
   if (isFetching) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#2A4365]/5 to-[#D4AF37]/5 flex items-center justify-center">
@@ -211,71 +266,12 @@ const FormEditDataStudent = () => {
               </div>
             </div>
           </div>
-
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-            <div className="w-2 h-2 bg-[#D4AF37] rounded-full"></div>
-            <span className="text-[#2A4365] font-medium">Edit Data Siswa</span>
-            <div className="w-8 h-px bg-gray-300"></div>
-            <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-            <span className="text-gray-400">Preview</span>
-          </div>
         </div>
-
-        {/* Success/Error Alert */}
-        {msg && (
-          <div
-            className={`mb-6 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-300 ${
-              msg.startsWith("success:")
-                ? "bg-green-50 border border-green-200"
-                : "bg-red-50 border border-red-200"
-            }`}
-          >
-            <div
-              className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                msg.startsWith("success:") ? "bg-green-500" : "bg-red-500"
-              }`}
-            >
-              {msg.startsWith("success:") ? (
-                <svg
-                  className="w-3 h-3 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-3 h-3 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
-            </div>
-            <p
-              className={`text-sm flex-1 ${
-                msg.startsWith("success:") ? "text-green-700" : "text-red-700"
-              }`}
-            >
-              {msg.startsWith("success:") ? msg.replace("success:", "") : msg}
-            </p>
-          </div>
-        )}
 
         {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-200/60 overflow-hidden">
           <div className="p-8">
-            <form onSubmit={updateStudent} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-8">
               {/* Photo Upload Section */}
               <div className="space-y-4">
                 <Label className="text-base font-semibold text-[#2A4365] flex items-center gap-2">
@@ -303,7 +299,6 @@ const FormEditDataStudent = () => {
                         )}
                       </div>
 
-                      {/* Edit Badge */}
                       {formData.previewImage && (
                         <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#D4AF37] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
                           <Camera className="w-3 h-3 text-white" />
@@ -321,6 +316,7 @@ const FormEditDataStudent = () => {
                         accept="image/*"
                         onChange={handleImageChange}
                         className="hidden"
+                        ref={fileInputRef}
                       />
 
                       <label
@@ -334,13 +330,7 @@ const FormEditDataStudent = () => {
                       {formData.previewImage && (
                         <button
                           type="button"
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              previewImage: "",
-                              profileImage: null,
-                            })
-                          }
+                          onClick={handleRemovePhoto}
                           className="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-xl border border-red-200 hover:bg-red-100 transition-all duration-200 font-medium"
                         >
                           Hapus Foto
@@ -362,10 +352,9 @@ const FormEditDataStudent = () => {
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-[#2A4365]/10"></div>
 
-              {/* Data Pribadi Section */}
+              {/* Data Pribadi */}
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-[#2A4365]">
                   <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full"></div>
@@ -375,7 +364,6 @@ const FormEditDataStudent = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Nama Lengkap */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="name"
@@ -396,7 +384,6 @@ const FormEditDataStudent = () => {
                     />
                   </div>
 
-                  {/* Jenis Kelamin */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="jk"
@@ -415,7 +402,6 @@ const FormEditDataStudent = () => {
                     />
                   </div>
 
-                  {/* Umur */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="umur"
@@ -437,7 +423,6 @@ const FormEditDataStudent = () => {
                     />
                   </div>
 
-                  {/* Student ID (Readonly) */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-[#2A4365]">
                       Student ID
@@ -448,7 +433,6 @@ const FormEditDataStudent = () => {
                   </div>
                 </div>
 
-                {/* Alamat */}
                 <div className="space-y-2">
                   <Label
                     htmlFor="alamat"
@@ -469,9 +453,8 @@ const FormEditDataStudent = () => {
                 </div>
               </div>
 
-              {/* Kontak & Akademik Section */}
+              {/* Kontak & Akademik */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Kontak */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-2 text-[#2A4365]">
                     <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full"></div>
@@ -479,7 +462,6 @@ const FormEditDataStudent = () => {
                       Informasi Kontak
                     </Label>
                   </div>
-
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label
@@ -500,7 +482,6 @@ const FormEditDataStudent = () => {
                         className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365] placeholder-[#2A4365]/40"
                       />
                     </div>
-
                     <div className="space-y-2">
                       <Label
                         htmlFor="hp"
@@ -522,7 +503,6 @@ const FormEditDataStudent = () => {
                   </div>
                 </div>
 
-                {/* Akademik */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-2 text-[#2A4365]">
                     <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full"></div>
@@ -530,26 +510,7 @@ const FormEditDataStudent = () => {
                       Informasi Akademik
                     </Label>
                   </div>
-
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="bidang"
-                        className="text-sm font-medium text-[#2A4365] flex items-center gap-2"
-                      >
-                        <BookOpen className="w-4 h-4 text-[#D4AF37]" />
-                        Bidang
-                      </Label>
-                      <SelectForm
-                        id="bidang"
-                        name="bidang"
-                        value={formData.bidang}
-                        onChange={handleChange}
-                        options={bidangOptions}
-                        className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365]"
-                      />
-                    </div>
-
                     <div className="space-y-2">
                       <Label
                         htmlFor="kelas"
@@ -558,20 +519,39 @@ const FormEditDataStudent = () => {
                         <GraduationCap className="w-4 h-4 text-[#D4AF37]" />
                         Kelas
                       </Label>
-                      <SelectForm
+                      <InputForm
                         id="kelas"
+                        type="text"
+                        placeholder="XII RPL 1"
                         name="kelas"
                         value={formData.kelas}
                         onChange={handleChange}
-                        options={kelasOptions}
-                        className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365]"
+                        className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365] placeholder-[#2A4365]/40"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="bidang"
+                        className="text-sm font-medium text-[#2A4365] flex items-center gap-2"
+                      >
+                        <BookOpen className="w-4 h-4 text-[#D4AF37]" />
+                        Jurusan
+                      </Label>
+                      <InputForm
+                        id="bidang"
+                        type="text"
+                        placeholder="Rekayasa Perangkat Lunak"
+                        name="bidang"
+                        value={formData.bidang}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365] placeholder-[#2A4365]/40"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Password Update Section */}
+              {/* Password */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-[#2A4365]">
@@ -580,18 +560,9 @@ const FormEditDataStudent = () => {
                       Perbarui Password
                     </Label>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={resetPasswordFields}
-                    className="text-sm text-[#2A4365]/60 hover:text-[#D4AF37] transition-colors font-medium"
-                  >
-                    Reset
-                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Password */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="password"
@@ -610,8 +581,6 @@ const FormEditDataStudent = () => {
                       className="w-full px-4 py-3 rounded-xl border border-[#2A4365]/20 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all duration-200 text-[#2A4365] placeholder-[#2A4365]/40"
                     />
                   </div>
-
-                  {/* Konfirmasi Password */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="confPassword"
@@ -644,44 +613,51 @@ const FormEditDataStudent = () => {
               <div className="pt-4 flex flex-col sm:flex-row gap-4">
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#E8C44F] hover:from-[#C19C30] hover:to-[#D4AF37] text-[#2A4365] py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group"
+                  className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#E8C44F] hover:from-[#C19C30] hover:to-[#D4AF37] text-[#2A4365] py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-3 group"
                 >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-[#2A4365] border-t-transparent rounded-full animate-spin"></div>
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      <span>Simpan Perubahan</span>
-                    </>
-                  )}
+                  <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span>Simpan Perubahan</span>
                 </Button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="px-8 py-4 bg-white text-[#2A4365] border border-[#2A4365]/20 rounded-2xl font-semibold hover:bg-[#2A4365]/5 hover:border-[#2A4365]/30 transition-all duration-300"
-                >
-                  Batal
-                </button>
               </div>
             </form>
           </div>
         </div>
-
-        {/* Brand Footer */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#2A4365]/5 rounded-full">
-            <div className="w-2 h-2 bg-[#D4AF37] rounded-full"></div>
-            <span className="text-sm text-[#2A4365]/60 font-medium">
-              Sistem Manajemen Siswa Premium
-            </span>
-          </div>
-        </div>
       </div>
+
+      {/* === MODALS === */}
+      <ConfirmDialog
+        isOpen={showConfirm}
+        onClose={closeModal}
+        onConfirm={handleConfirmSave}
+        title="Konfirmasi Simpan"
+        message={`Apakah Anda yakin ingin menyimpan perubahan untuk siswa "${formData.name}"?`}
+        confirmText="Ya, Simpan"
+        cancelText="Batal"
+        variant="pending"
+      />
+
+      <LoadingModal isOpen={showLoading} message="Menyimpan data siswa..." />
+
+      <SuccessModal
+        isOpen={showSuccess}
+        onClose={handleSuccessClose}
+        title="Berhasil!"
+        message={modalMessage}
+      />
+
+      <ErrorModal
+        isOpen={showError}
+        onClose={closeModal}
+        title="Gagal Memperbarui"
+        message={modalMessage}
+      />
+
+      <CropperModal
+        isOpen={showCropper}
+        image={tempImageURL}
+        onClose={onCropCancel}
+        onCropDone={onCropDone}
+      />
     </div>
   );
 };

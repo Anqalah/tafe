@@ -89,7 +89,7 @@ const DataAdmin = () => {
         </h1>
         <Link to="add">
           <Button className="text-white bg-secondary/80 hover:bg-secondary">
-            + Tambah Admin
+            Tambah Admin
           </Button>
         </Link>
       </div>
@@ -156,7 +156,7 @@ const DataAdmin = () => {
 
                         {isSelf ? (
                           <span className="text-gray-400 italic text-sm px-3 py-1.5 flex items-center">
-                            — Akun Anda
+                            Akun Anda
                           </span>
                         ) : (
                           <Button

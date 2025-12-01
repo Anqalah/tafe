@@ -11,19 +11,24 @@ const FaceVerificationRegister = () => {
   const canvasRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationToken, setVerificationToken] = useState("");
   const [modal, setModal] = useState({ show: false, type: "", message: "" });
-
-  // 👉 hasil embedding dari backend
   const [embeddingResult, setEmbeddingResult] = useState(null);
-  // 👉 countdown & timeout untuk auto-redirect
   const [redirectCountdown, setRedirectCountdown] = useState(15);
   const [redirectTimeoutId, setRedirectTimeoutId] = useState(null);
+  const [facePreviewUrl, setFacePreviewUrl] = useState("");
 
-  // Ambil token dari URL (?token=...)
+  // Cleanup URL saat unmount atau facePreviewUrl berubah
+  useEffect(() => {
+    return () => {
+      if (facePreviewUrl) {
+        URL.revokeObjectURL(facePreviewUrl);
+      }
+    };
+  }, [facePreviewUrl]);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
@@ -57,10 +62,8 @@ const FaceVerificationRegister = () => {
   useEffect(() => {
     if (!embeddingResult) return;
 
-    // reset countdown ke 15 tiap kali popup muncul
     setRedirectCountdown(15);
 
-    // interval untuk update angka detik di UI
     const intervalId = setInterval(() => {
       setRedirectCountdown((prev) => {
         if (prev <= 1) {
@@ -71,86 +74,91 @@ const FaceVerificationRegister = () => {
       });
     }, 1000);
 
-    // timeout: auto pindah ke login setelah 15 detik
     const timeoutId = setTimeout(() => {
       navigate("/login");
     }, 15000);
     setRedirectTimeoutId(timeoutId);
 
-    // bersihkan interval & timeout kalau komponen unmount / popup hilang
     return () => {
       clearTimeout(timeoutId);
       clearInterval(intervalId);
     };
   }, [embeddingResult, navigate]);
 
-  // Tangkap satu frame wajah dari kamera
-  const captureFaceImage = async () => {
-    const canvas = canvasRef.current || document.createElement("canvas");
+  // Capture & crop wajah → hasilkan Blob + URL preview
+  const captureAndCropFace = async () => {
     const video = videoRef.current;
+    if (!video) throw new Error("Video element tidak tersedia");
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error("Gagal membuat Blob"));
+          const url = URL.createObjectURL(blob);
+          setFacePreviewUrl(url); // simpan URL untuk ditampilkan di popup
+          resolve(blob);
+        },
+        "image/jpeg",
+        0.9
+      );
+    });
   };
 
   const showModal = (type, message) => setModal({ show: true, type, message });
 
-  // Kirim foto + token ke backend utama Node.js
   const submitFaceVerification = async (faceImageBlob) => {
     const formData = new FormData();
     formData.append("face_image", faceImageBlob, "face.jpg");
     formData.append("verification_token", verificationToken);
 
-    const res = await axiosInstance.post("/register/complete", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    try {
+      const res = await axiosInstance.post("/register/complete", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-    if (!res.data.success) {
-      throw new Error(res.data.error || "Aktivasi akun gagal");
+      // Backend mengembalikan { success: true } hanya pada sukses
+      if (!res.data?.success) {
+        // Coba cari pesan error dari berbagai field
+        const errorMsg =
+          res.data?.error ||
+          res.data?.msg ||
+          res.data?.message ||
+          "Aktivasi akun gagal";
+        throw new Error(errorMsg);
+      }
+
+      return res.data;
+    } catch (err) {
+      throw err;
     }
-
-    // 👉 kembalikan seluruh payload (termasuk embeddingResult)
-    return res.data;
   };
 
   const handleVerificationError = (err) => {
-    const msg = err.response?.data?.error || err.message || "Verifikasi gagal";
+    const msg =
+      err.response?.data?.error ||
+      err.response?.data?.msg ||
+      err.response?.data?.message ||
+      err.message ||
+      "Verifikasi gagal";
+
     showModal("error", msg);
     setError(msg);
   };
 
-  // Tangkap wajah & kirim ke backend
-  const handleFaceCapture = async () => {
-    if (!verificationToken || isSubmitting) return;
-    setIsSubmitting(true);
-    setError("");
-
-    try {
-      showModal("loading", "Mendaftarkan wajah...");
-
-      const faceImageBlob = await captureFaceImage();
-      const result = await submitFaceVerification(faceImageBlob);
-
-      // 👉 simpan hasil embedding jika tersedia
-      if (result.embeddingResult) {
-        setEmbeddingResult(result.embeddingResult);
-      }
-
-      // tampilkan modal success (boleh tetap, tapi tidak redirect di sini)
-      showModal("success", "Pendaftaran wajah berhasil!");
-    } catch (err) {
-      handleVerificationError(err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Tutup popup embedding & langsung pindah ke login
   const handleEmbeddingPopupClose = () => {
     if (redirectTimeoutId) {
       clearTimeout(redirectTimeoutId);
+    }
+    // Cleanup preview URL saat popup ditutup
+    if (facePreviewUrl) {
+      URL.revokeObjectURL(facePreviewUrl);
+      setFacePreviewUrl("");
     }
     setEmbeddingResult(null);
     navigate("/login");
@@ -164,6 +172,30 @@ const FaceVerificationRegister = () => {
       console.error("Gagal hapus registrasi:", err.message);
     } finally {
       navigate("/register");
+    }
+  };
+
+  const handleFaceCapture = async () => {
+    if (!verificationToken || isSubmitting) return;
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      showModal("loading", "Mendeteksi wajah...");
+      const faceImageBlob = await captureAndCropFace();
+
+      showModal("loading", "Mendaftarkan wajah...");
+      const result = await submitFaceVerification(faceImageBlob);
+
+      setModal({ show: false });
+
+      if (result.embeddingResult) {
+        setEmbeddingResult(result.embeddingResult);
+      }
+    } catch (err) {
+      handleVerificationError(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -199,7 +231,7 @@ const FaceVerificationRegister = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex justify-center">
+          <div className="bg-primary rounded-xl text-secondary mt-4 flex justify-center">
             <Button
               onClick={handleFaceCapture}
               disabled={isSubmitting}
@@ -211,7 +243,7 @@ const FaceVerificationRegister = () => {
               ) : (
                 <>
                   <CameraIcon className="w-5 h-5" />
-                  <span>Ambil Foto & Daftarkan Wajah</span>
+                  <span>Daftarkan Wajah</span>
                 </>
               )}
             </Button>
@@ -224,7 +256,7 @@ const FaceVerificationRegister = () => {
             onClose={() => setModal({ ...modal, show: false })}
           />
 
-          {/* 👉 POPUP EMBEDDING DI TENGAH LAYAR */}
+          {/* 👉 POPUP EMBEDDING DENGAN PREVIEW WAJAH DI DALAMNYA */}
           {embeddingResult && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
               <div className="mx-4 w-full max-w-md rounded-2xl bg-slate-900 text-slate-100 shadow-2xl p-6">
@@ -237,7 +269,24 @@ const FaceVerificationRegister = () => {
                 <h2 className="text-center text-lg font-semibold text-emerald-300">
                   Pendaftaran Wajah Berhasil
                 </h2>
-                <p className="mt-2 text-center text-xs text-slate-300">
+
+                {/* ✅ Preview wajah DI DALAM popup */}
+                {facePreviewUrl && (
+                  <div className="mt-3 flex justify-center">
+                    <div className="text-center">
+                      <p className="text-xs text-slate-400 mb-1">
+                        Wajah terdaftar
+                      </p>
+                      <img
+                        src={facePreviewUrl}
+                        alt="Wajah terdaftar"
+                        className="w-24 h-24 rounded-lg object-cover border border-slate-700"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-3 text-center text-xs text-slate-300">
                   Wajah Anda sudah terdaftar di sistem presensi. Anda akan
                   dialihkan ke halaman login dalam{" "}
                   <span className="font-semibold text-emerald-300">
