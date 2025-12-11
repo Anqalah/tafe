@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
+import toast from "react-hot-toast"; // tetap digunakan untuk notifikasi ringan
 import { useSelector } from "react-redux";
 import Webcam from "react-webcam";
 import EmbeddingCard from "../../components/Elements/Face/EmbeddingCard";
@@ -18,6 +18,11 @@ import {
   CheckCircleIcon,
   DocumentDuplicateIcon,
 } from "@heroicons/react/24/outline";
+
+// Import Modals
+import ErrorModal from "../../components/Elements/Modals/ErrorModal";
+import SuccessModal from "../../components/Elements/Modals/SuccessModal";
+import LoadingModal from "../../components/Elements/Modals/LoadingModal";
 
 // ---------------- CAMERA BOX ----------------
 function CameraBox({ webcamRef, onCapture, loading }) {
@@ -62,6 +67,15 @@ export default function UpdateFace() {
   const [stage, setStage] = useState("camera");
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [successModal, setSuccessModal] = useState(false);
+  const [errorModal, setErrorModal] = useState({
+    show: false,
+    title: "Gagal!",
+    message: "",
+  });
+  const [loadingModal, setLoadingModal] = useState({
+    show: false,
+    message: "Memproses...",
+  });
 
   const user = useSelector((state) => state.auth.user);
   const studentId = user?.uuid;
@@ -82,7 +96,8 @@ export default function UpdateFace() {
     const fetchStudentData = async () => {
       if (!studentId) return;
       try {
-        setLoading(true); // untuk spinner loading
+        setLoading(true);
+        setLoadingModal({ show: true, message: "Memuat data wajah lama..." });
         const res = await axiosInstance.get(`/students/${studentId}`);
         const data = res.data;
         if (data?.face_image) {
@@ -91,14 +106,17 @@ export default function UpdateFace() {
           setOldFaceImage(null);
           toast.warning("Foto wajah lama tidak ditemukan.");
         }
-
-        // Jika Anda butuh data lain (nama, jurusan, dll), ambil di sini
       } catch (e) {
         console.error("Gagal mengambil data mahasiswa:", e);
-        toast.error("Gagal memuat data wajah lama.");
+        setErrorModal({
+          show: true,
+          title: "Gagal Memuat Data",
+          message: "Gagal memuat data wajah lama. Silakan coba lagi nanti.",
+        });
         setOldFaceImage(null);
       } finally {
         setLoading(false);
+        setLoadingModal({ show: false, message: "" });
       }
     };
     fetchStudentData();
@@ -110,6 +128,7 @@ export default function UpdateFace() {
       if (!studentId) return;
 
       try {
+        setLoadingModal({ show: true, message: "Mengambil embedding lama..." });
         log("📡 Mengambil embedding lama dari sistem AI...");
         const res = await axiosFastAPI.get("/summary");
 
@@ -133,7 +152,7 @@ export default function UpdateFace() {
         console.error("Gagal mengambil embedding:", e);
         log("❌ Gagal mengambil embedding lama.");
         setOldEmbedding(null);
-        // Biarkan proses jalan, tapi beri tahu user
+        // Beri notifikasi ringan, bukan modal — karena bukan fatal
         toast(
           "Embedding lama tidak ditemukan. Update tetap bisa dilanjutkan.",
           {
@@ -141,6 +160,8 @@ export default function UpdateFace() {
             duration: 4000,
           }
         );
+      } finally {
+        setLoadingModal({ show: false, message: "" });
       }
     };
 
@@ -154,6 +175,7 @@ export default function UpdateFace() {
 
     try {
       setLoading(true);
+      setLoadingModal({ show: true, message: "Memproses wajah baru..." });
 
       const blob = await fetch(src).then((r) => r.blob());
       const fd = new FormData();
@@ -165,15 +187,13 @@ export default function UpdateFace() {
       });
 
       if (res.data.status !== "success") {
-        toast.error("Embedding gagal");
-        return;
+        throw new Error(res.data.message || "Embedding gagal diproses");
       }
 
       const emb = res.data.embedding;
       setNewEmbedding(emb);
 
       // Compute similarity
-
       const sim = cosineSimilarity(oldEmbedding, emb);
       const dist = euclideanDistance(oldEmbedding, emb);
 
@@ -184,10 +204,16 @@ export default function UpdateFace() {
       log(`📊 Similarity: ${(sim * 100).toFixed(1)}%`);
       log(`📊 Distance: ${dist.toFixed(4)}`);
     } catch (err) {
-      toast.error("Gagal memproses embedding");
-      log("❌ Error: " + err.message);
+      console.error("Gagal memproses embedding:", err);
+      setErrorModal({
+        show: true,
+        title: "Gagal Proses Wajah",
+        message:
+          err.message || "Terjadi kesalahan saat memproses wajah. Coba lagi.",
+      });
     } finally {
       setLoading(false);
+      setLoadingModal({ show: false, message: "" });
     }
   };
 
@@ -196,7 +222,15 @@ export default function UpdateFace() {
     if (!webcamRef.current || loading) return;
 
     const img = webcamRef.current.getScreenshot();
-    if (!img) return toast.error("Gagal mengambil foto");
+    if (!img) {
+      setErrorModal({
+        show: true,
+        title: "Gagal Ambil Foto",
+        message:
+          "Gagal mengambil foto dari kamera. Pastikan kamera aktif dan izin diberikan.",
+      });
+      return;
+    }
 
     setCapturedImage(img);
     setNewEmbedding(null);
@@ -213,10 +247,19 @@ export default function UpdateFace() {
 
   // -------- CONFIRM UPDATE --------
   const handleConfirm = async () => {
-    if (!capturedImage || !newEmbedding) return;
+    if (!capturedImage || !newEmbedding) {
+      setErrorModal({
+        show: true,
+        title: "Data Tidak Lengkap",
+        message:
+          "Harap ambil foto dan pastikan embedding berhasil diproses sebelum konfirmasi.",
+      });
+      return;
+    }
 
     try {
       setLoading(true);
+      setLoadingModal({ show: true, message: "Mengirim foto ke sistem..." });
       log("📡 Mengirim foto baru ke sistem...");
 
       const blob = await fetch(capturedImage).then((r) => r.blob());
@@ -260,10 +303,17 @@ export default function UpdateFace() {
       setSuccessModal(true);
       resetFlow();
     } catch (err) {
-      toast.error("Gagal update foto");
-      log("❌ Error update: " + err.message);
+      console.error("Gagal update foto:", err);
+      setErrorModal({
+        show: true,
+        title: "Gagal Update Foto",
+        message:
+          err.message ||
+          "Terjadi kesalahan saat memperbarui foto. Coba lagi nanti.",
+      });
     } finally {
       setLoading(false);
+      setLoadingModal({ show: false, message: "" });
     }
   };
 
@@ -458,43 +508,28 @@ export default function UpdateFace() {
           </motion.div>
         </AnimatePresence>
       </div>
+
       {/* ---- SUCCESS MODAL ---- */}
-      <AnimatePresence>
-        {successModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white px-8 py-10 rounded-2xl shadow-2xl text-center max-w-sm w-full"
-            >
-              <CheckCircleIcon className="w-20 h-20 text-green-500 mx-auto mb-4" />
+      <SuccessModal
+        isOpen={successModal}
+        onClose={() => {
+          setSuccessModal(false);
+          window.location.reload(); 
+        }}
+        title="Berhasil Diperbarui!"
+        message="Wajah dan embedding Anda telah diperbarui di sistem."
+      />
 
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Berhasil Diperbarui!
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Wajah dan embedding Anda telah diperbarui di sistem.
-              </p>
+      {/* ---- ERROR MODAL ---- */}
+      <ErrorModal
+        isOpen={errorModal.show}
+        onClose={() => setErrorModal({ show: false, title: "", message: "" })}
+        title={errorModal.title}
+        message={errorModal.message}
+      />
 
-              <button
-                onClick={() => {
-                  setSuccessModal(false);
-                  window.location.reload();
-                }}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-              >
-                OK
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ---- LOADING MODAL ---- */}
+      <LoadingModal isOpen={loadingModal.show} message={loadingModal.message} />
     </StudentLayout>
   );
 }
