@@ -95,14 +95,8 @@ const HistoryAttendanceModal = () => {
       status,
       clockIn: attendance?.ClockIn,
       clockOut: attendance?.ClockOut,
-      note: attendance?.Note || "-",
-      // Data tambahan untuk confidence score dan foto
-      confidenceIn: attendance?.confidenceIn || 0,
-      confidenceOut: attendance?.confidenceOut || 0,
       photoIn: attendance?.photoIn || null,
       photoOut: attendance?.photoOut || null,
-      // Data asli dari API
-      rawData: attendance || null,
     };
   };
 
@@ -160,11 +154,6 @@ const HistoryAttendanceModal = () => {
     const data = getAttendanceStatus(day);
     setSelectedDay(day);
     setSelectedData(data);
-  };
-
-  const closeModal = () => {
-    setSelectedDay(null);
-    setSelectedData(null);
   };
 
   return (

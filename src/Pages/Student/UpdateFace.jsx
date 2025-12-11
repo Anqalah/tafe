@@ -10,6 +10,7 @@ import SimilarityInfo from "../../components/Elements/Face/SimilarityInfo";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
 import axiosFastAPI from "../../config/axiosFastAPI";
+import { getFaceImageURL } from "../../utils/getFaceImageURL";
 
 // Icons
 import {
@@ -78,27 +79,72 @@ export default function UpdateFace() {
 
   // -------- FETCH OLD FACE IMAGE --------
   useEffect(() => {
-    if (user?.face_image) {
-      setOldFaceImage(user.face_image);
-    }
-  }, [user]);
+    const fetchStudentData = async () => {
+      if (!studentId) return;
+      try {
+        setLoading(true); // untuk spinner loading
+        const res = await axiosInstance.get(`/students/${studentId}`);
+        const data = res.data;
+        if (data?.face_image) {
+          setOldFaceImage(getFaceImageURL(data.face_image));
+        } else {
+          setOldFaceImage(null);
+          toast.warning("Foto wajah lama tidak ditemukan.");
+        }
+
+        // Jika Anda butuh data lain (nama, jurusan, dll), ambil di sini
+      } catch (e) {
+        console.error("Gagal mengambil data mahasiswa:", e);
+        toast.error("Gagal memuat data wajah lama.");
+        setOldFaceImage(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudentData();
+  }, [studentId]);
 
   // -------- FETCH OLD EMBEDDING --------
   useEffect(() => {
-    const fetchOld = async () => {
+    const fetchOldEmbedding = async () => {
+      if (!studentId) return;
+
       try {
+        log("📡 Mengambil embedding lama dari sistem AI...");
         const res = await axiosFastAPI.get("/summary");
 
-        if (res.data?.[studentId]) {
-          setOldEmbedding(res.data[studentId].centroid);
+        if (res.data && typeof res.data === "object") {
+          const studentData = res.data[studentId];
+
+          if (studentData && studentData.centroid) {
+            setOldEmbedding(studentData.centroid);
+            log("✅ Embedding lama ditemukan.");
+          } else {
+            setOldEmbedding(null);
+            log(
+              "⚠️ Embedding lama tidak tersedia. Anda akan membuat embedding baru."
+            );
+          }
         } else {
+          setOldEmbedding(null);
+          log("❌ Format respons /summary tidak valid.");
         }
       } catch (e) {
+        console.error("Gagal mengambil embedding:", e);
         log("❌ Gagal mengambil embedding lama.");
+        setOldEmbedding(null);
+        // Biarkan proses jalan, tapi beri tahu user
+        toast(
+          "Embedding lama tidak ditemukan. Update tetap bisa dilanjutkan.",
+          {
+            icon: "ℹ️",
+            duration: 4000,
+          }
+        );
       }
     };
 
-    if (studentId) fetchOld();
+    fetchOldEmbedding();
   }, [studentId]);
 
   // -------- EMBEDDING WITH FASTAPI (preview) --------
@@ -127,6 +173,7 @@ export default function UpdateFace() {
       setNewEmbedding(emb);
 
       // Compute similarity
+
       const sim = cosineSimilarity(oldEmbedding, emb);
       const dist = euclideanDistance(oldEmbedding, emb);
 
@@ -174,42 +221,43 @@ export default function UpdateFace() {
 
       const blob = await fetch(capturedImage).then((r) => r.blob());
 
-      // --- 1. Update foto di NodeJS ---
+      // --- 1. UPDATE FOTO DI NODEJS ---
       const fdNode = new FormData();
       fdNode.append("face_image", blob, "face.jpg");
       await axiosInstance.patch(`/students/${studentId}`, fdNode, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      // Ambil data student terbaru
-      try {
-        const fresh = await axiosInstance.get(`/students/${studentId}`);
-        if (fresh.data?.face_image) {
-          setOldFaceImage(fresh.data.face_image);
-        }
-      } catch (e) {
-        console.warn("Gagal refresh data student:", e.message);
-      }
 
-      // --- 2. Update summary FastAPI ---
+      // --- 2. UPDATE FASTAPI & AMBIL EMBEDDING BARU ---
       try {
-        const fdEnroll = new FormData();
-        fdEnroll.append("studentId", studentId);
-        fdEnroll.append("file", blob, "face.jpg");
+        const fdFastAPI = new FormData();
+        fdFastAPI.append("studentId", studentId);
+        fdFastAPI.append("file", blob, "face.jpg");
 
-        await axiosFastAPI.post("/enroll", fdEnroll, {
+        const res = await axiosFastAPI.post("/update_face", fdFastAPI, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
-        log("✅ Embedding berhasil diperbarui di sistem AI.");
-        setOldEmbedding(newEmbedding);
+        if (res.data.status === "success") {
+          const newEmb = res.data.embedding;
+          setNewEmbedding(newEmb);
+          if (res.data.face_crop_base64) {
+            setOldFaceImage(
+              `data:image/jpeg;base64,${res.data.face_crop_base64}`
+            );
+          }
+
+          log("✅ Embedding baru berhasil diperbarui.");
+        } else {
+          log("⚠️ FastAPI update_face gagal, tetapi foto sudah terupdate.");
+        }
       } catch (e) {
         console.error("Gagal update embedding:", e.message);
         log("⚠️ Gagal memperbarui embedding, tetapi foto sudah terupdate.");
       }
 
-      // TOAST BERHASIL - Ditambahkan di sini
+      // TOAST BERHASIL
       setSuccessModal(true);
-
       resetFlow();
     } catch (err) {
       toast.error("Gagal update foto");
@@ -435,7 +483,10 @@ export default function UpdateFace() {
               </p>
 
               <button
-                onClick={() => setSuccessModal(false)}
+                onClick={() => {
+                  setSuccessModal(false);
+                  window.location.reload();
+                }}
                 className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
               >
                 OK
@@ -447,15 +498,3 @@ export default function UpdateFace() {
     </StudentLayout>
   );
 }
-
-// -------- UTILS URL FACE IMAGE --------
-const getFaceImageURL = (path) => {
-  if (!path) return null;
-  let clean = String(path).replace(/\\/g, "/");
-  if (clean.startsWith("http")) return clean;
-  const base = (
-    axiosInstance.defaults.baseURL || "http://localhost:8000"
-  ).replace(/\/+$/, "");
-  clean = clean.replace(/^\/+/, "");
-  return `${base}/${clean}`;
-};

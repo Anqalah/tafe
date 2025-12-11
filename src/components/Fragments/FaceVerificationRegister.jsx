@@ -4,30 +4,24 @@ import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
 import Button from "../Elements/Button";
 import AuthLayout from "../Layouts/AuthLayouts";
 import axiosInstance from "../../config/axios";
-import { Modal } from "../Elements/Modals/Modal";
+import RegisterSuccessModal from "../Elements/Modals/RegisterSuccessModal";
+import ErrorModal from "../Elements/Modals/ErrorModal";
+import LoadingModal from "../Elements/Modals/LoadingModal";
 
 const FaceVerificationRegister = () => {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationToken, setVerificationToken] = useState("");
-  const [modal, setModal] = useState({ show: false, type: "", message: "" });
+  const [modal, setModal] = useState({
+    show: false,
+    type: "loading",
+    message: "",
+  });
   const [embeddingResult, setEmbeddingResult] = useState(null);
-  const [redirectCountdown, setRedirectCountdown] = useState(15);
-  const [redirectTimeoutId, setRedirectTimeoutId] = useState(null);
-  const [facePreviewUrl, setFacePreviewUrl] = useState("");
-
-  // Cleanup URL saat unmount atau facePreviewUrl berubah
-  useEffect(() => {
-    return () => {
-      if (facePreviewUrl) {
-        URL.revokeObjectURL(facePreviewUrl);
-      }
-    };
-  }, [facePreviewUrl]);
+  const [faceImageUrl, setFaceImageUrl] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -41,7 +35,7 @@ const FaceVerificationRegister = () => {
     setVerificationToken(token);
   }, [location.search, navigate]);
 
-  // Buka kamera
+  // Kamera
   useEffect(() => {
     let stream = null;
     const initCamera = async () => {
@@ -58,35 +52,7 @@ const FaceVerificationRegister = () => {
     return () => stream && stream.getTracks().forEach((t) => t.stop());
   }, []);
 
-  // Saat embeddingResult ter-set, mulai hitung mundur & jadwalkan redirect
-  useEffect(() => {
-    if (!embeddingResult) return;
-
-    setRedirectCountdown(15);
-
-    const intervalId = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalId);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    const timeoutId = setTimeout(() => {
-      navigate("/login");
-    }, 15000);
-    setRedirectTimeoutId(timeoutId);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
-    };
-  }, [embeddingResult, navigate]);
-
-  // Capture & crop wajah → hasilkan Blob + URL preview
-  const captureAndCropFace = async () => {
+  const captureFace = async () => {
     const video = videoRef.current;
     if (!video) throw new Error("Video element tidak tersedia");
 
@@ -100,8 +66,6 @@ const FaceVerificationRegister = () => {
       canvas.toBlob(
         (blob) => {
           if (!blob) return reject(new Error("Gagal membuat Blob"));
-          const url = URL.createObjectURL(blob);
-          setFacePreviewUrl(url); // simpan URL untuk ditampilkan di popup
           resolve(blob);
         },
         "image/jpeg",
@@ -110,58 +74,34 @@ const FaceVerificationRegister = () => {
     });
   };
 
-  const showModal = (type, message) => setModal({ show: true, type, message });
-
   const submitFaceVerification = async (faceImageBlob) => {
     const formData = new FormData();
     formData.append("face_image", faceImageBlob, "face.jpg");
     formData.append("verification_token", verificationToken);
 
-    try {
-      const res = await axiosInstance.post("/register/complete", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    const res = await axiosInstance.post("/register/complete", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      // Backend mengembalikan { success: true } hanya pada sukses
-      if (!res.data?.success) {
-        // Coba cari pesan error dari berbagai field
-        const errorMsg =
-          res.data?.error ||
-          res.data?.msg ||
-          res.data?.message ||
-          "Aktivasi akun gagal";
-        throw new Error(errorMsg);
-      }
-
-      return res.data;
-    } catch (err) {
-      throw err;
+    if (!res.data?.success) {
+      const errorMsg = res.data?.error || "Registrasi gagal";
+      throw new Error(errorMsg);
     }
+
+    return res.data;
   };
 
   const handleVerificationError = (err) => {
-    const msg =
-      err.response?.data?.error ||
-      err.response?.data?.msg ||
-      err.response?.data?.message ||
-      err.message ||
-      "Verifikasi gagal";
+    let msg = "Verifikasi gagal";
+    const data = err.response?.data;
 
-    showModal("error", msg);
-    setError(msg);
-  };
-
-  const handleEmbeddingPopupClose = () => {
-    if (redirectTimeoutId) {
-      clearTimeout(redirectTimeoutId);
+    if (data?.code === "NO_FACE_DETECTED") {
+      msg = data.error;
+    } else if (data?.error) {
+      msg = data.error;
     }
-    // Cleanup preview URL saat popup ditutup
-    if (facePreviewUrl) {
-      URL.revokeObjectURL(facePreviewUrl);
-      setFacePreviewUrl("");
-    }
-    setEmbeddingResult(null);
-    navigate("/login");
+    setModal({ show: true, type: "error", message: msg });
+    setIsSubmitting(false);
   };
 
   const handleBackClick = async () => {
@@ -179,19 +119,36 @@ const FaceVerificationRegister = () => {
     if (!verificationToken || isSubmitting) return;
     setIsSubmitting(true);
     setError("");
+    setModal({ show: true, type: "loading", message: "Mendeteksi wajah..." });
 
     try {
-      showModal("loading", "Mendeteksi wajah...");
-      const faceImageBlob = await captureAndCropFace();
+      const faceImageBlob = await captureFace();
+      setModal({
+        show: true,
+        type: "loading",
+        message: "Mendaftarkan wajah...",
+      });
 
-      showModal("loading", "Mendaftarkan wajah...");
       const result = await submitFaceVerification(faceImageBlob);
 
       setModal({ show: false });
 
-      if (result.embeddingResult) {
-        setEmbeddingResult(result.embeddingResult);
+      // ✅ Siapkan data sukses
+      const faceCropBase64 = result.data?.face_crop_base64;
+      if (!faceCropBase64) {
+        throw new Error("Foto wajah tidak tersedia dari server");
       }
+      setFaceImageUrl(`data:image/jpeg;base64,${faceCropBase64}`);
+      setEmbeddingResult(result.embeddingResult);
+
+      setTimeout(() => {
+        setModal({ show: true, type: "success" });
+      }, 50);
+
+      // Redirect otomatis setelah 10 detik (di-handle oleh Modal useEffect)
+      setTimeout(() => {
+        navigate("/login");
+      }, 10000);
     } catch (err) {
       handleVerificationError(err);
     } finally {
@@ -227,7 +184,6 @@ const FaceVerificationRegister = () => {
                 muted
                 className="w-full h-full object-cover"
               />
-              <canvas ref={canvasRef} className="hidden" />
             </div>
           </div>
 
@@ -249,105 +205,27 @@ const FaceVerificationRegister = () => {
             </Button>
           </div>
 
-          <Modal
-            show={modal.show}
-            type={modal.type}
+          <LoadingModal
+            isOpen={modal.show && modal.type === "loading"}
             message={modal.message}
-            onClose={() => setModal({ ...modal, show: false })}
           />
 
-          {/* 👉 POPUP EMBEDDING DENGAN PREVIEW WAJAH DI DALAMNYA */}
-          {embeddingResult && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="mx-4 w-full max-w-md rounded-2xl bg-slate-900 text-slate-100 shadow-2xl p-6">
-                <div className="flex items-center justify-center mb-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">
-                    <span className="text-emerald-400 text-2xl">✅</span>
-                  </div>
-                </div>
+          <RegisterSuccessModal
+            show={modal.show && modal.type === "success"}
+            embeddingResult={embeddingResult}
+            faceImageUrl={faceImageUrl}
+            onClose={() => {
+              setModal({ ...modal, show: false });
+              navigate("/login");
+            }}
+          />
 
-                <h2 className="text-center text-lg font-semibold text-emerald-300">
-                  Pendaftaran Wajah Berhasil
-                </h2>
-
-                {/* ✅ Preview wajah DI DALAM popup */}
-                {facePreviewUrl && (
-                  <div className="mt-3 flex justify-center">
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400 mb-1">
-                        Wajah terdaftar
-                      </p>
-                      <img
-                        src={facePreviewUrl}
-                        alt="Wajah terdaftar"
-                        className="w-24 h-24 rounded-lg object-cover border border-slate-700"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <p className="mt-3 text-center text-xs text-slate-300">
-                  Wajah Anda sudah terdaftar di sistem presensi. Anda akan
-                  dialihkan ke halaman login dalam{" "}
-                  <span className="font-semibold text-emerald-300">
-                    {redirectCountdown}
-                  </span>{" "}
-                  detik, atau klik tombol di bawah untuk melanjutkan sekarang.
-                </p>
-
-                <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-lg bg-slate-800/80 px-2 py-1.5">
-                    <p className="text-slate-400">Dimensi Embedding</p>
-                    <p className="font-mono text-emerald-300">
-                      {embeddingResult.embedding_dim ?? "-"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-slate-800/80 px-2 py-1.5">
-                    <p className="text-slate-400">Total Embedding</p>
-                    <p className="font-mono text-emerald-300">
-                      {embeddingResult.n_embeddings ?? 1}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-slate-800/80 px-2 py-1.5">
-                    <p className="text-slate-400">Waktu Proses</p>
-                    <p className="font-mono text-emerald-300">
-                      {embeddingResult.total_time ?? 0}s
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-slate-800/80 px-2 py-1.5">
-                    <p className="text-slate-400">Mode</p>
-                    <p className="font-mono text-emerald-300">
-                      {embeddingResult.append_mode
-                        ? "Append (tambah sample)"
-                        : "Enroll baru"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <p className="text-[11px] text-slate-400 mb-1">
-                    Contoh nilai embedding (8 dimensi pertama)
-                  </p>
-                  <code className="block max-h-20 overflow-x-auto rounded-lg bg-slate-950/70 px-2 py-1.5 text-[10px] font-mono text-emerald-200">
-                    {Array.isArray(embeddingResult.last_embedding_sample)
-                      ? `[${embeddingResult.last_embedding_sample
-                          .map((v) => Number(v).toFixed(4))
-                          .join(", ")}]`
-                      : "Tidak tersedia"}
-                  </code>
-                </div>
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={handleEmbeddingPopupClose}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
-                  >
-                    Tutup & ke Login
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <ErrorModal
+            isOpen={modal.show && modal.type === "error"}
+            onClose={() => setModal({ ...modal, show: false })}
+            title="Verifikasi Gagal"
+            message={modal.message || "Terjadi kesalahan. Silakan coba lagi."}
+          />
         </div>
       </div>
     </AuthLayout>

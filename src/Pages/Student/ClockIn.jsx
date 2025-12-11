@@ -72,7 +72,6 @@ const ClockIn = () => {
       formData.append("studentId", studentId);
       formData.append("file", imageBlob, "face.png");
       formData.append("liveness", "true");
-
       const res = await axiosFastAPI.post("/verify", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 90000,
@@ -97,10 +96,10 @@ const ClockIn = () => {
     formData.append("studentId", data.studentId);
     formData.append("latitude", data.latitude);
     formData.append("longitude", data.longitude);
-    formData.append("confidence", data.confidence);
+    const confidence = verification?.similarity_percent ?? 0;
+    formData.append("confidence", confidence.toString()); // kirim sebagai string angka
     formData.append("type", "clockIn");
     formData.append("foto", data.imageBlob, "face.png");
-
     const res = await axiosInstance.post("/attendances", formData, {
       headers: { "Content-Type": "multipart/form-data" },
       timeout: 15000,
@@ -195,7 +194,10 @@ const ClockIn = () => {
 
       toast.success("Presensi berhasil!");
       setShowPreviewModal(false);
-      setTimeout(() => navigate(`/attendances/clockin-results/${authUser?.id}`), 1200);
+      setTimeout(
+        () => navigate(`/attendances/clockin-results/${authUser?.id}`),
+        1200
+      );
     } catch (err) {
       console.error("Clock-in error:", err);
       toast.error(err.message || "Terjadi kesalahan saat presensi.");
@@ -227,7 +229,9 @@ const ClockIn = () => {
 
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
           <CameraIcon className="w-5 h-5 text-amber-600" />
-          <span>Pastikan wajah terlihat jelas dengan pencahayaan yang cukup.</span>
+          <span>
+            Pastikan wajah terlihat jelas dengan pencahayaan yang cukup.
+          </span>
         </div>
 
         {!isLoading && !imageSrc && (
@@ -252,12 +256,13 @@ const ClockIn = () => {
           </div>
         )}
 
-        {/* ✅ PreviewModal tanpa embeddingImage prop — semua dari verification */}
+        {/* ✅ Tambahkan user.face_image sebagai prop registeredFaceUrl */}
         <div className="relative z-[9999]">
           <PreviewModal
             show={showPreviewModal}
             type="clockIn"
             imageSrc={imageSrc}
+            registeredFaceUrl={user?.face_image} // ✅ Prop baru
             verification={verification}
             onConfirm={handleConfirmClockIn}
             onRetake={handleClosePreviewModal}

@@ -1,9 +1,11 @@
 import { CameraIcon, ClockIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { getFaceImageURL } from "../../../utils/getFaceImageURL";
 
 const PreviewModal = ({
   show,
   type = "clockIn",
   imageSrc,
+  registeredFaceUrl,
   verification,
   onConfirm,
   onRetake,
@@ -14,7 +16,6 @@ const PreviewModal = ({
   const match = verification.match ?? false;
   const similarity = verification.similarity_percent ?? 0;
   const threshold = verification.threshold_similarity ?? 70.0;
-
   const statusLabel = match ? "Verified" : "Not Verified";
   const statusColor = match ? "text-emerald-600" : "text-red-600";
   const statusBg = match
@@ -25,7 +26,7 @@ const PreviewModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-auto overflow-hidden transform transition-all duration-300">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-primary p-4">
+        <div className="bg-gradient-to-r from-secondary to-primary p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -43,18 +44,18 @@ const PreviewModal = ({
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-5">
+        <div className="p-4 space-y-4">
           {/* Photos Comparison */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Registered Face */}
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CameraIcon className="w-5 h-5 text-gray-600" />
-                <h4 className="font-semibold text-gray-800">Registered Face</h4>
+                <h4 className="font-semibold text-gray-800">Wajah Terdaftar</h4>
               </div>
-              {verification.face_crop_url ? (
+              {registeredFaceUrl ? (
                 <img
-                  src={`http://localhost:5000${verification.face_crop_url}`}
+                  src={getFaceImageURL(registeredFaceUrl)}
                   alt="Registered"
                   className="w-full h-40 object-cover rounded-lg border"
                 />
@@ -65,11 +66,11 @@ const PreviewModal = ({
               )}
             </div>
 
-            {/* Current Photo */}
+            {/* Foto CLock In */}
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CameraIcon className="w-5 h-5 text-blue-600" />
-                <h4 className="font-semibold text-gray-800">Current Photo</h4>
+                <h4 className="font-semibold text-gray-800">Foto Clock In</h4>
               </div>
               {imageSrc ? (
                 <img

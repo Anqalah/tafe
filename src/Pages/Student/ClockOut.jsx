@@ -124,7 +124,8 @@ const ClockOut = () => {
     formData.append("studentId", data.studentId);
     formData.append("latitude", data.latitude);
     formData.append("longitude", data.longitude);
-    formData.append("confidence", data.confidence);
+    const confidence = verification?.similarity_percent ?? 0;
+    formData.append("confidence", confidence.toString());
     formData.append("type", "clockOut");
     formData.append("foto", data.imageBlob, "face.png");
 
@@ -297,10 +298,7 @@ const ClockOut = () => {
             show={showPreviewModal}
             type="clockOut"
             imageSrc={imageSrc}
-            embeddingImage={getFaceImageURL(user?.face_image)}
-            latitude={latitude}
-            longitude={longitude}
-            isLoading={isLoading}
+            registeredFaceUrl={user?.face_image}
             verification={verification}
             onConfirm={handleConfirmClockOut}
             onRetake={handleClosePreviewModal}

@@ -66,7 +66,7 @@ export const Modal = ({ type, message, onClose, show }) => {
                   {message}
                 </h3>
               ) : (
-                message // Render custom component jika bukan string
+                message
               )}
 
               {type === "warning" && typeof message === "string" && (

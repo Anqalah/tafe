@@ -177,7 +177,7 @@ const DataAdmin = () => {
         </table>
       </div>
 
-      {/* === MODALS === */}
+  
       <DeleteConfirmationModal
         isOpen={showDeleteConfirm}
         onClose={closeModal}

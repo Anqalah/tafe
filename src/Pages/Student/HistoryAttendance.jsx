@@ -26,6 +26,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import StudentLayout from "../../components/Layouts/StudentLayout";
 import axiosInstance from "../../config/axios";
+import { getFaceImageURL } from "../../utils/getFaceImageURL";
 
 const HistoryAttendance = () => {
   const { id: studentId } = useParams();
@@ -107,12 +108,8 @@ const HistoryAttendance = () => {
       status,
       clockIn: attendance?.ClockIn,
       clockOut: attendance?.ClockOut,
-      note: attendance?.Note || "-",
-      confidenceIn: attendance?.confidenceIn || 0,
-      confidenceOut: attendance?.confidenceOut || 0,
-      photoIn: attendance?.photoIn || null,
-      photoOut: attendance?.photoOut || null,
-      // Data asli dari API
+      photoIn: attendance?.facePhotoClockIn || null,
+      photoOut: attendance?.facePhotoClockOut || null,
       rawData: attendance || null,
     };
   };
@@ -149,31 +146,6 @@ const HistoryAttendance = () => {
       text: "text-muted-foreground",
       border: "border-border",
     },
-  };
-
-  // Helper untuk format confidence score
-  const formatConfidence = (score) => {
-    if (!score) return "0%";
-    const percentage = Math.round(score * 100);
-    return `${percentage}%`;
-  };
-
-  // Helper untuk warna confidence score
-  const getConfidenceColor = (score) => {
-    if (!score) return "text-gray-500";
-    const percentage = Math.round(score * 100);
-    if (percentage >= 80) return "text-green-600";
-    if (percentage >= 60) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  // Helper untuk background confidence score
-  const getConfidenceBg = (score) => {
-    if (!score) return "bg-gray-100";
-    const percentage = Math.round(score * 100);
-    if (percentage >= 80) return "bg-green-100";
-    if (percentage >= 60) return "bg-yellow-100";
-    return "bg-red-100";
   };
 
   const navigateMonth = (direction) => {
@@ -435,29 +407,6 @@ const HistoryAttendance = () => {
                           <span className="text-gray-400 text-lg">--:--</span>
                         )}
                       </div>
-
-                      {/* Confidence Score Clock In */}
-                      {selectedData?.confidenceIn > 0 && (
-                        <div
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${getConfidenceBg(
-                            selectedData.confidenceIn
-                          )}`}
-                        >
-                          <FaceSmileIcon
-                            className={`w-3 h-3 ${getConfidenceColor(
-                              selectedData.confidenceIn
-                            )}`}
-                          />
-                          <span
-                            className={`text-xs font-medium ${getConfidenceColor(
-                              selectedData.confidenceIn
-                            )}`}
-                          >
-                            Confidence:{" "}
-                            {formatConfidence(selectedData.confidenceIn)}
-                          </span>
-                        </div>
-                      )}
                     </div>
 
                     {/* Foto Clock In */}
@@ -469,11 +418,14 @@ const HistoryAttendance = () => {
                         </div>
                         <div className="border-2 border-dashed border-gray-200 rounded-lg overflow-hidden">
                           <img
-                            src={selectedData.photoIn}
+                            src={getFaceImageURL(selectedData.photoIn)} // ✅ gunakan helper
                             alt="Foto Clock In"
                             className="w-full h-32 object-cover hover:scale-105 transition-transform duration-200 cursor-pointer"
                             onClick={() =>
-                              window.open(selectedData.photoIn, "_blank")
+                              window.open(
+                                getFaceImageURL(selectedData.photoIn),
+                                "_blank"
+                              )
                             }
                           />
                         </div>
@@ -501,29 +453,6 @@ const HistoryAttendance = () => {
                           <span className="text-gray-400 text-lg">--:--</span>
                         )}
                       </div>
-
-                      {/* Confidence Score Clock Out */}
-                      {selectedData?.confidenceOut > 0 && (
-                        <div
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${getConfidenceBg(
-                            selectedData.confidenceOut
-                          )}`}
-                        >
-                          <FaceSmileIcon
-                            className={`w-3 h-3 ${getConfidenceColor(
-                              selectedData.confidenceOut
-                            )}`}
-                          />
-                          <span
-                            className={`text-xs font-medium ${getConfidenceColor(
-                              selectedData.confidenceOut
-                            )}`}
-                          >
-                            Confidence:{" "}
-                            {formatConfidence(selectedData.confidenceOut)}
-                          </span>
-                        </div>
-                      )}
                     </div>
 
                     {/* Foto Clock Out */}
@@ -535,11 +464,14 @@ const HistoryAttendance = () => {
                         </div>
                         <div className="border-2 border-dashed border-gray-200 rounded-lg overflow-hidden">
                           <img
-                            src={selectedData.photoOut}
+                            src={getFaceImageURL(selectedData.photoOut)}
                             alt="Foto Clock Out"
                             className="w-full h-32 object-cover hover:scale-105 transition-transform duration-200 cursor-pointer"
                             onClick={() =>
-                              window.open(selectedData.photoOut, "_blank")
+                              window.open(
+                                getFaceImageURL(selectedData.photoOut),
+                                "_blank"
+                              )
                             }
                           />
                         </div>
@@ -554,43 +486,6 @@ const HistoryAttendance = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Summary Confidence Score */}
-                {(selectedData?.confidenceIn > 0 ||
-                  selectedData?.confidenceOut > 0) && (
-                  <div className="mt-4 p-3 bg-gradient-to-r from-[#2A4365]/5 to-[#D4AF37]/5 rounded-lg border border-[#2A4365]/10">
-                    <div className="flex items-center gap-2 text-sm font-medium text-[#2A4365] mb-2">
-                      <ChartBarIcon className="w-4 h-4" />
-                      Ringkasan Verifikasi Wajah
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div className="text-center">
-                        <div className="font-medium text-gray-600">
-                          Clock In
-                        </div>
-                        <div
-                          className={`font-bold ${getConfidenceColor(
-                            selectedData.confidenceIn
-                          )}`}
-                        >
-                          {formatConfidence(selectedData.confidenceIn)}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-gray-600">
-                          Clock Out
-                        </div>
-                        <div
-                          className={`font-bold ${getConfidenceColor(
-                            selectedData.confidenceOut
-                          )}`}
-                        >
-                          {formatConfidence(selectedData.confidenceOut)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

@@ -136,7 +136,7 @@ const ProfileStudent = () => {
       });
 
       if (formData.profileImage) {
-        dataToSend.append("foto", formData.profileImage);
+        dataToSend.append("foto_profile", formData.profileImage);
       }
 
       const res = await axiosInstance.patch(
